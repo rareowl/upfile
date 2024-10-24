@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <!-- Meta tags to define character set and viewport for responsiveness -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- Title of the page (appears in the browser tab) -->
+    <title>UpFile - Upload Your File</title>
+    
+    <!-- Link to the CSS file for styling the page -->
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <!-- A centered container for the file upload form -->
+    <div class="container">
+        <h1>Upload Your File</h1> <!-- Main heading for the page -->
+
+        <!-- Form to handle file upload -->
+        <form action="/upload" method="POST" enctype="multipart/form-data">
+            <!-- File input for users to select their file -->
+            <input type="file" name="file" required>
+            
+            <!-- Submit button to send the file -->
+            <button type="submit">Upload</button>
+        </form>
+    </div>
+</body>
+
+</html>

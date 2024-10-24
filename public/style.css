@@ -1,0 +1,55 @@
+/* Apply a global style to reset default browser styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* Set the body to take up the full screen with a clean font */
+body {
+    height: 100vh; /* Full viewport height */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-family: Arial, sans-serif;
+    background-color: #f0f0f0; /* Light background for a sleek look */
+}
+
+/* Style the container to center everything on the page */
+.container {
+    text-align: center; /* Center the text inside the container */
+    background-color: #fff; /* White background for the container */
+    padding: 30px;
+    border-radius: 10px; /* Rounded corners for a modern look */
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); /* Slight shadow for depth */
+    max-width: 400px; /* Limit the width for readability */
+    width: 100%; /* Make the container responsive */
+}
+
+/* Style the heading */
+.container h1 {
+    font-size: 24px;
+    margin-bottom: 20px; /* Space between heading and form */
+}
+
+/* Style the file input */
+input[type="file"] {
+    display: block;
+    margin: 0 auto 20px; /* Center it and add space below */
+}
+
+/* Style the upload button */
+button {
+    background-color: #3498db; /* Light blue button */
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+/* Change button color when hovered */
+button:hover {
+    background-color: #2980b9;
+}
