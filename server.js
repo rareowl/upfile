@@ -45,6 +45,15 @@ app.post('/upload', upload.single('file'), (req, res) => {
         downloadLink: downloadLink
     });
 });
+app.get('/', (req, res) => {   
+     res.sendFile(path.join(__dirname, 'public', 'index.html'));});
+
+     app.get('/download/:id', (req, res) => {    
+        const downloadId = req.params.id;    const fileInfo = fileLinks[downloadId];    
+        if (!fileInfo) {        return res.status(404).send('File not found.');    }   
+         res.download(fileInfo.filePath, fileInfo.fileName, (err) => {        if (err) {            
+            console.error(`Error downloading file: ${err}`);            
+            res.status(500).send('Error downloading file.');        }    });});
 
 app.get('/', (req, res) => {
     res.send(`
