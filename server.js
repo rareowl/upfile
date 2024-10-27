@@ -212,6 +212,21 @@ app.post('/admin-settings', requireAdmin, async (req, res) => {
     }
 });
 
+// File Size Check
+app.get('/get-max-file-size', async (req, res) => {
+    try {
+        const settings = await Settings.findOne();
+        const maxSize = settings ? settings.maxUploadSize : 100 * 1024 * 1024; // Default 100MB
+        res.json({ maxSize });
+    } catch (error) {
+        console.error('Error getting max file size:', error);
+        res.status(500).json({ 
+            error: 'Server error',
+            maxSize: 100 * 1024 * 1024 // Default fallback
+        });
+    }
+});
+
 // File upload routes
 app.post('/upload', async (req, res) => {
     try {

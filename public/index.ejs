@@ -43,27 +43,46 @@
     </div>
 
     <script>
-        // Previous JavaScript remains the same
-        const fileInput = document.getElementById('fileInput');
-        const uploadButton = document.getElementById('uploadButton');
-        const progressContainer = document.getElementById('progressContainer');
-        const progressBar = document.getElementById('progressBar');
-        const progressText = document.getElementById('progressText');
-        const resultMessage = document.getElementById('resultMessage');
-        const uploadSuccess = document.getElementById('uploadSuccess');
-        const downloadLink = document.getElementById('downloadLink');
-        
-        function uploadFile() {
+     // Keep your existing variable declarations
+const fileInput = document.getElementById('fileInput');
+const uploadButton = document.getElementById('uploadButton');
+const progressContainer = document.getElementById('progressContainer');
+const progressBar = document.getElementById('progressBar');
+const progressText = document.getElementById('progressText');
+const resultMessage = document.getElementById('resultMessage');
+const uploadSuccess = document.getElementById('uploadSuccess');
+const downloadLink = document.getElementById('downloadLink');
+
+// Add this new function
+async function getMaxFileSize() {
+    try {
+        const response = await fetch('/get-max-file-size');
+        const data = await response.json();
+        return data.maxSize;
+    } catch (error) {
+        console.error('Error getting max file size:', error);
+        return null;
+    }
+}
+
+// Update your existing uploadFile function to be async
+async function uploadFile() {
     const file = fileInput.files[0];
     if (!file) {
         alert('Please select a file first!');
         return;
     }
 
-    // Reset states
+    // Add this new size check
+    const maxSize = await getMaxFileSize();
+    if (maxSize && file.size > maxSize) {
+        const maxSizeMB = (maxSize / (1024 * 1024)).toFixed(2);
+        resultMessage.textContent = `File size exceeds the limit of ${maxSizeMB} MB`;
+        return;
+    }
+
+    // Rest of your existing uploadFile function stays the same
     progressContainer.style.display = 'block';
-    progressBar.style.width = '0%';
-    progressText.textContent = '0%';
     uploadButton.disabled = true;
     uploadSuccess.style.display = 'none';
     resultMessage.textContent = '';
@@ -87,58 +106,64 @@
             const response = JSON.parse(xhr.responseText);
             
             if (xhr.status === 200 && response.success) {
-                // Handle success
+                // Hide progress bar
+                progressContainer.style.display = 'none';
+                
+                // Show success message and link
                 const fullUrl = window.location.origin + response.downloadLink;
                 downloadLink.href = fullUrl;
                 downloadLink.textContent = fullUrl;
                 uploadSuccess.style.display = 'block';
                 resultMessage.textContent = '';
             } else {
-                // Handle error
+                // Show error message
+                progressContainer.style.display = 'none';
                 uploadSuccess.style.display = 'none';
                 resultMessage.textContent = response.message || 'Upload failed. Please try again.';
             }
         } catch (e) {
             // Handle parsing error
+            progressContainer.style.display = 'none';
             uploadSuccess.style.display = 'none';
             resultMessage.textContent = 'Upload failed. Please try again.';
-        } finally {
-            // Always hide progress and enable button
-            progressContainer.style.display = 'none';
-            uploadButton.disabled = false;
         }
+        
+        // Re-enable upload button
+        uploadButton.disabled = false;
     };
 
     xhr.onerror = () => {
+        progressContainer.style.display = 'none';
         uploadSuccess.style.display = 'none';
         resultMessage.textContent = 'Upload failed. Please check your connection.';
-        progressContainer.style.display = 'none';
         uploadButton.disabled = false;
     };
 
     xhr.send(formData);
 }
 
-        function copyLink() {
-            const linkText = downloadLink.href;
-            navigator.clipboard.writeText(linkText).then(() => {
-                const copyButton = document.getElementById('copyButton');
-                copyButton.textContent = 'copied!';
-                setTimeout(() => {
-                    copyButton.textContent = 'copy';
-                }, 2000);
-            }).catch(err => {
-                console.error('Failed to copy link: ', err);
-            });
-        }
+// Keep your existing copyLink function
+function copyLink() {
+    const linkText = downloadLink.href;
+    navigator.clipboard.writeText(linkText).then(() => {
+        const copyButton = document.getElementById('copyButton');
+        copyButton.textContent = 'copied!';
+        setTimeout(() => {
+            copyButton.textContent = 'copy';
+        }, 2000);
+    }).catch(err => {
+        console.error('Failed to copy link: ', err);
+    });
+}
 
-        fileInput.addEventListener('change', () => {
-            progressContainer.style.display = 'none';
-            progressBar.style.width = '0%';
-            progressText.textContent = '0%';
-            uploadSuccess.style.display = 'none';
-            uploadButton.disabled = false;
-        });
+fileInput.addEventListener('change', () => {
+    progressContainer.style.display = 'none';
+    progressBar.style.width = '0%';
+    progressText.textContent = '0%';
+    uploadSuccess.style.display = 'none';
+    resultMessage.textContent = ''; // Clear any error messages
+    uploadButton.disabled = false;
+});
     </script>
 </body>
 </html>

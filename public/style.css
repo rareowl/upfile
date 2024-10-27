@@ -265,17 +265,16 @@ button:disabled {
 }
 
 /* Add these styles to your existing CSS */
-.result-message {
-    width: 100%;
-    margin-top: 1rem;
-    text-align: center;
-}
+/* Add this to your style.css */
 
 #resultMessage {
     color: #ff0000;
-    margin-bottom: 1rem;
+    margin: 1rem 0;
+    text-align: center;
+    font-weight: bold;
 }
 
 #uploadSuccess {
     margin-top: 1rem;
 }
+
