@@ -3,17 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>UpFile - Upload Your File</title>
+    <title>upfile.1 - File Sharing</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <div class="logo">upfile.1</div>
+    
     <div class="container">
-        <h1>Upload Your File</h1>
-        
-        <!-- File input and upload button -->
         <div class="upload-form">
             <input type="file" id="fileInput" name="file" required>
-            <button id="uploadButton" onclick="uploadFile()">Upload</button>
+            <button id="uploadButton" onclick="uploadFile()">upload</button>
         </div>
 
         <!-- Progress bar container -->
@@ -24,18 +23,31 @@
             <div class="progress-text" id="progressText">0%</div>
         </div>
 
-        <!-- Result message -->
-        <div id="resultMessage" class="result-message"></div>
+        <!-- Result message with link and copy button -->
+        <div id="resultMessage" class="result-message">
+            <div id="uploadSuccess" style="display: none;">
+                <p>file uploaded successfully</p>
+                <div class="link-container">
+                    <a id="downloadLink" href="" target="_blank"></a>
+                    <button id="copyButton" onclick="copyLink()">
+                        copy
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
+        // Previous JavaScript remains the same
         const fileInput = document.getElementById('fileInput');
         const uploadButton = document.getElementById('uploadButton');
         const progressContainer = document.getElementById('progressContainer');
         const progressBar = document.getElementById('progressBar');
         const progressText = document.getElementById('progressText');
         const resultMessage = document.getElementById('resultMessage');
-
+        const uploadSuccess = document.getElementById('uploadSuccess');
+        const downloadLink = document.getElementById('downloadLink');
+        
         function uploadFile() {
             const file = fileInput.files[0];
             if (!file) {
@@ -43,20 +55,16 @@
                 return;
             }
 
-            // Show progress bar and disable button
             progressContainer.style.display = 'block';
             uploadButton.disabled = true;
-            resultMessage.textContent = '';
+            uploadSuccess.style.display = 'none';
 
-            // Create FormData and append file
             const formData = new FormData();
             formData.append('file', file);
 
-            // Create and configure XHR
             const xhr = new XMLHttpRequest();
             xhr.open('POST', '/upload', true);
 
-            // Upload progress handler
             xhr.upload.onprogress = (event) => {
                 if (event.lengthComputable) {
                     const percent = (event.loaded / event.total) * 100;
@@ -65,35 +73,49 @@
                 }
             };
 
-            // Upload complete handler
             xhr.onload = () => {
                 if (xhr.status === 200) {
-                    resultMessage.innerHTML = xhr.responseText;
-                    resultMessage.style.color = '#4CAF50';
+                    const response = JSON.parse(xhr.responseText);
+                    if (response.success) {
+                        const fullUrl = window.location.origin + response.downloadLink;
+                        downloadLink.href = fullUrl;
+                        downloadLink.textContent = fullUrl;
+                        uploadSuccess.style.display = 'block';
+                    } else {
+                        resultMessage.textContent = 'upload failed. please try again.';
+                    }
                 } else {
-                    resultMessage.textContent = 'Upload failed. Please try again.';
-                    resultMessage.style.color = '#f44336';
+                    resultMessage.textContent = 'upload failed. please try again.';
                 }
                 uploadButton.disabled = false;
             };
 
-            // Upload error handler
             xhr.onerror = () => {
-                resultMessage.textContent = 'Upload failed. Please check your connection.';
-                resultMessage.style.color = '#f44336';
+                resultMessage.textContent = 'upload failed. please check your connection.';
                 uploadButton.disabled = false;
             };
 
-            // Send the file
             xhr.send(formData);
         }
 
-        // Reset progress when new file is selected
+        function copyLink() {
+            const linkText = downloadLink.href;
+            navigator.clipboard.writeText(linkText).then(() => {
+                const copyButton = document.getElementById('copyButton');
+                copyButton.textContent = 'copied!';
+                setTimeout(() => {
+                    copyButton.textContent = 'copy';
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy link: ', err);
+            });
+        }
+
         fileInput.addEventListener('change', () => {
             progressContainer.style.display = 'none';
             progressBar.style.width = '0%';
             progressText.textContent = '0%';
-            resultMessage.textContent = '';
+            uploadSuccess.style.display = 'none';
             uploadButton.disabled = false;
         });
     </script>

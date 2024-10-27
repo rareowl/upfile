@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Download - upfile.1</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <div class="logo">upfile.1</div>
+    
+    <div class="container">
+        <div class="download-info">
+            <div class="info-row">
+                <span class="label">file:</span>
+                <span class="value"><%= fileName %></span>
+            </div>
+            <div class="info-row">
+                <span class="label">size:</span>
+                <span class="value"><%= fileSize %></span>
+            </div>
+        </div>
+        <button onclick="startDownload()" class="download-button">download</button>
+    </div>
+
+    <script>
+        function startDownload() {
+            window.location.href = window.location.pathname + '/download';
+        }
+    </script>
+</body>
+</html>

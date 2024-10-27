@@ -1,106 +1,159 @@
-/* Existing styles */
+/* Reset and base styles */
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    font-family: 'Courier New', monospace;
 }
 
 body {
-    height: 100vh;
+    min-height: 100vh;
+    background-color: #ffffff;
+    color: #1a1a1a;
     display: flex;
+    flex-direction: column;
+    padding: 2rem;
+}
+
+/* Logo styling */
+.logo {
+    position: fixed;
+    top: 2rem;
+    left: 2rem;
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #1a1a1a;
+}
+
+/* Main container */
+.container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
     justify-content: center;
     align-items: center;
-    font-family: Arial, sans-serif;
-    background-color: #f0f0f0;
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 2rem;
 }
 
-.container {
-    text-align: center;
-    background-color: #fff;
-    padding: 30px;
-    border-radius: 10px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-    max-width: 400px;
-    width: 100%;
-}
-
-.container h1 {
-    font-size: 24px;
-    margin-bottom: 20px;
-}
-
-/* New styles for upload form and progress bar */
+/* Upload form */
 .upload-form {
-    margin-bottom: 20px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
 }
 
 input[type="file"] {
-    display: block;
-    margin: 0 auto 20px;
     width: 100%;
-    max-width: 300px;
+    padding: 0.5rem;
+    border: 1px solid #1a1a1a;
+    border-radius: 4px;
+    font-size: 0.9rem;
 }
 
 button {
-    background-color: #3498db;
-    color: white;
-    padding: 10px 20px;
+    background-color: #1a1a1a;
+    color: #ffffff;
     border: none;
-    border-radius: 5px;
+    padding: 0.8rem 1.5rem;
+    border-radius: 4px;
     cursor: pointer;
-    font-size: 16px;
-    transition: background-color 0.3s;
+    font-size: 0.9rem;
+    transition: background-color 0.2s;
 }
 
 button:hover {
-    background-color: #2980b9;
+    background-color: #333;
 }
 
 button:disabled {
-    background-color: #bdc3c7;
+    background-color: #999;
     cursor: not-allowed;
 }
 
-/* Progress bar styles */
+/* Progress bar */
 .progress-container {
-    margin: 20px auto;
     width: 100%;
-    max-width: 300px;
+    margin: 1rem 0;
 }
 
 .progress {
     width: 100%;
-    height: 20px;
-    background-color: #f3f3f3;
-    border-radius: 10px;
+    height: 4px;
+    background-color: #eee;
+    border-radius: 2px;
     overflow: hidden;
-    margin-bottom: 10px;
 }
 
 .progress-bar {
-    width: 0;
     height: 100%;
-    background-color: #3498db;
+    background-color: #1a1a1a;
     transition: width 0.3s ease;
 }
 
 .progress-text {
-    font-size: 14px;
-    color: #666;
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+    text-align: center;
 }
 
-/* Result message styles */
+/* Result message and link container */
 .result-message {
-    margin-top: 20px;
-    padding: 10px;
+    width: 100%;
+    margin-top: 1rem;
+}
+
+.link-container {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    padding: 1rem;
+    background-color: #f5f5f5;
+    border-radius: 4px;
     word-break: break-all;
 }
 
-.result-message a {
-    color: #3498db;
+.link-container a {
+    flex: 1;
+    color: #1a1a1a;
     text-decoration: none;
+    font-size: 0.9rem;
 }
 
-.result-message a:hover {
+.link-container a:hover {
     text-decoration: underline;
+}
+
+/* Download page specific styles */
+.download-info {
+    width: 100%;
+    margin-bottom: 2rem;
+}
+
+.info-row {
+    display: flex;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+}
+
+.info-row .label {
+    min-width: 4rem;
+    color: #666;
+}
+
+.info-row .value {
+    word-break: break-all;
+}
+
+.download-button {
+    min-width: 150px;
+}
+
+/* Success message */
+#uploadSuccess p {
+    text-align: center;
+    color: #1a1a1a;
+    margin-bottom: 1rem;
 }
