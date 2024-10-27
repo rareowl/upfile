@@ -157,3 +157,62 @@ button:disabled {
     color: #1a1a1a;
     margin-bottom: 1rem;
 }
+
+/* Auth links */
+.auth-links {
+    position: fixed;
+    top: 2rem;
+    right: 2rem;
+    font-size: 1rem;
+}
+
+.auth-links a {
+    color: #1a1a1a;
+    text-decoration: none;
+}
+
+.auth-links a:hover {
+    text-decoration: underline;
+}
+
+/* Auth forms */
+.auth-form {
+    width: 100%;
+    max-width: 400px;
+    padding: 2rem;
+    border: 1px solid #eee;
+    border-radius: 4px;
+}
+
+.auth-form h2 {
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #1a1a1a;
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+/* Profile styles */
+.profile-info {
+    width: 100%;
+    max-width: 600px;
+}
+
+.profile-info h2 {
+    margin-bottom: 2rem;
+    text-align: center;
+}

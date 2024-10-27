@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile - upfile.1</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <div class="logo">upfile.1</div>
+    <div class="auth-links">
+        <a href="/logout">logout</a>
+    </div>
+    
+    <div class="container">
+        <div class="profile-info">
+            <h2>Profile</h2>
+            <div class="info-row">
+                <span class="label">username:</span>
+                <span class="value"><%= user.username %></span>
+            </div>
+            <div class="info-row">
+                <span class="label">email:</span>
+                <span class="value"><%= user.email %></span>
+            </div>
+            <div class="info-row">
+                <span class="label">joined:</span>
+                <span class="value"><%= user.createdAt.toLocaleDateString() %></span>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
