@@ -248,3 +248,18 @@ button:disabled {
     font-size: 0.9rem;
     color: #666;
 }
+
+/* Update this in public/style.css */
+.logo {
+    position: fixed;
+    top: 2rem;
+    left: 2rem;
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #1a1a1a;
+    text-decoration: none;
+}
+
+.logo:hover {
+    text-decoration: underline; /* Matches other link hover effects */
+}

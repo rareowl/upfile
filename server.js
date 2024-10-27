@@ -33,17 +33,21 @@ const userSchema = new mongoose.Schema({
 const User = mongoose.model('User', userSchema);
 
 const settingsSchema = new mongoose.Schema({
-    maxUploadSize: { type: Number, default: 100 * 1024 * 1024 }, // Default 100MB
+    maxUploadSize: { type: Number, default: 0 * 1024 * 1024 }, // Default unlimited
     lastUpdated: { type: Date, default: Date.now }
 });
 
 const Settings = mongoose.model('Settings', settingsSchema);
 
-// Initialize default settings if none exist
+// Initialize default settings
 async function initializeSettings() {
-    const settings = await Settings.findOne();
-    if (!settings) {
-        await new Settings({}).save();
+    try {
+        const settings = await Settings.findOne();
+        if (!settings) {
+            await new Settings({}).save();
+        }
+    } catch (error) {
+        console.error('Error initializing settings:', error);
     }
 }
 initializeSettings();
