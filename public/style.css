@@ -216,3 +216,35 @@ button:disabled {
     margin-bottom: 2rem;
     text-align: center;
 }
+
+/* Admin styles */
+.admin-link {
+    margin-top: 2rem;
+    text-align: center;
+}
+
+.admin-link a {
+    font-family: 'Courier New', monospace;
+    color: #1a1a1a;
+    text-decoration: none;
+}
+
+.admin-link a:hover {
+    text-decoration: underline;
+}
+
+.admin-settings {
+    width: 100%;
+    max-width: 500px;
+}
+
+.settings-form {
+    margin-top: 2rem;
+}
+
+.settings-info {
+    margin-top: 1rem;
+    text-align: center;
+    font-size: 0.9rem;
+    color: #666;
+}

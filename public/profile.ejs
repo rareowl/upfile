@@ -16,6 +16,7 @@
         <div class="profile-info">
             <h2>Profile</h2>
             <div class="info-row">
+                
                 <span class="label">username:</span>
                 <span class="value"><%= user.username %></span>
             </div>
@@ -29,5 +30,12 @@
             </div>
         </div>
     </div>
+    <% if (user.isAdmin) { %>
+        <div class="admin-section">
+            <div class="admin-link">
+                <a href="/admin-settings">admin settings</a>
+            </div>
+        </div>
+    <% } %>
 </body>
 </html>

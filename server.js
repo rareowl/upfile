@@ -26,10 +26,27 @@ const userSchema = new mongoose.Schema({
     username: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     email: { type: String, required: true, unique: true },
+    isAdmin: { type: Boolean, default: false },
     createdAt: { type: Date, default: Date.now }
 });
 
 const User = mongoose.model('User', userSchema);
+
+const settingsSchema = new mongoose.Schema({
+    maxUploadSize: { type: Number, default: 100 * 1024 * 1024 }, // Default 100MB
+    lastUpdated: { type: Date, default: Date.now }
+});
+
+const Settings = mongoose.model('Settings', settingsSchema);
+
+// Initialize default settings if none exist
+async function initializeSettings() {
+    const settings = await Settings.findOne();
+    if (!settings) {
+        await new Settings({}).save();
+    }
+}
+initializeSettings();
 
 // Middleware
 app.set('view engine', 'ejs');
@@ -82,11 +99,13 @@ app.get('/register', (req, res) => {
 
 app.post('/register', async (req, res) => {
     try {
+        const userCount = await User.countDocuments();
         const hashedPassword = await bcrypt.hash(req.body.password, 10);
         const user = new User({
             username: req.body.username,
             password: hashedPassword,
-            email: req.body.email
+            email: req.body.email,
+            isAdmin: userCount === 0 // First user becomes admin
         });
         await user.save();
         res.redirect('/login');
@@ -128,6 +147,48 @@ app.get('/profile', requireAuth, async (req, res) => {
 app.get('/logout', (req, res) => {
     req.session.destroy();
     res.redirect('/');
+});
+
+// Admin middleware
+const requireAdmin = async (req, res, next) => {
+    if (!req.session.userId) {
+        return res.redirect('/login');
+    }
+    const user = await User.findById(req.session.userId);
+    if (!user || !user.isAdmin) {
+        return res.redirect('/profile');
+    }
+    next();
+};
+
+// Admin settings GET route
+app.get('/admin-settings', requireAdmin, async (req, res) => {
+    try {
+        const settings = await Settings.findOne();
+        const user = await User.findById(req.session.userId);
+        res.render('admin-settings', { 
+            user,
+            settings: settings || { maxUploadSize: 100 * 1024 * 1024, lastUpdated: new Date() }
+        });
+    } catch (error) {
+        console.error('Admin settings error:', error);
+        res.redirect('/profile');
+    }
+});
+
+// Admin settings POST route
+app.post('/admin-settings', requireAdmin, async (req, res) => {
+    try {
+        const maxSize = parseInt(req.body.maxUploadSize);
+        await Settings.findOneAndUpdate({}, {
+            maxUploadSize: maxSize * 1024 * 1024, // Convert MB to bytes
+            lastUpdated: new Date()
+        }, { upsert: true });
+        res.redirect('/admin-settings');
+    } catch (error) {
+        console.error('Settings update error:', error);
+        res.redirect('/admin-settings');
+    }
 });
 
 // File upload routes
