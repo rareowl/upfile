@@ -25,18 +25,21 @@
             <div class="progress-text" id="progressText">0%</div>
         </div>
 
-        <!-- Result message with link and copy button -->
-        <div id="resultMessage" class="result-message">
-            <div id="uploadSuccess" style="display: none;">
-                <p>file uploaded successfully</p>
-                <div class="link-container">
-                    <a id="downloadLink" href="" target="_blank"></a>
-                    <button id="copyButton" onclick="copyLink()">
-                        copy
-                    </button>
-                </div>
-            </div>
+        <!-- Result message and success container -->
+<div class="result-message">
+    <!-- Error messages will go here -->
+    <div id="resultMessage"></div>
+    <!-- Success message with link -->
+    <div id="uploadSuccess" style="display: none;">
+        <p>file uploaded successfully</p>
+        <div class="link-container">
+            <a id="downloadLink" href="" target="_blank"></a>
+            <button id="copyButton" onclick="copyLink()">
+                copy
+            </button>
         </div>
+    </div>
+</div>
     </div>
 
     <script>
@@ -51,54 +54,70 @@
         const downloadLink = document.getElementById('downloadLink');
         
         function uploadFile() {
-            const file = fileInput.files[0];
-            if (!file) {
-                alert('Please select a file first!');
-                return;
-            }
+    const file = fileInput.files[0];
+    if (!file) {
+        alert('Please select a file first!');
+        return;
+    }
 
-            progressContainer.style.display = 'block';
-            uploadButton.disabled = true;
-            uploadSuccess.style.display = 'none';
+    // Reset states
+    progressContainer.style.display = 'block';
+    progressBar.style.width = '0%';
+    progressText.textContent = '0%';
+    uploadButton.disabled = true;
+    uploadSuccess.style.display = 'none';
+    resultMessage.textContent = '';
 
-            const formData = new FormData();
-            formData.append('file', file);
+    const formData = new FormData();
+    formData.append('file', file);
 
-            const xhr = new XMLHttpRequest();
-            xhr.open('POST', '/upload', true);
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/upload', true);
 
-            xhr.upload.onprogress = (event) => {
-                if (event.lengthComputable) {
-                    const percent = (event.loaded / event.total) * 100;
-                    progressBar.style.width = percent + '%';
-                    progressText.textContent = Math.round(percent) + '%';
-                }
-            };
-
-            xhr.onload = () => {
-                if (xhr.status === 200) {
-                    const response = JSON.parse(xhr.responseText);
-                    if (response.success) {
-                        const fullUrl = window.location.origin + response.downloadLink;
-                        downloadLink.href = fullUrl;
-                        downloadLink.textContent = fullUrl;
-                        uploadSuccess.style.display = 'block';
-                    } else {
-                        resultMessage.textContent = 'upload failed. please try again.';
-                    }
-                } else {
-                    resultMessage.textContent = 'upload failed. please try again.';
-                }
-                uploadButton.disabled = false;
-            };
-
-            xhr.onerror = () => {
-                resultMessage.textContent = 'upload failed. please check your connection.';
-                uploadButton.disabled = false;
-            };
-
-            xhr.send(formData);
+    xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+            const percent = (event.loaded / event.total) * 100;
+            progressBar.style.width = percent + '%';
+            progressText.textContent = Math.round(percent) + '%';
         }
+    };
+
+    xhr.onload = () => {
+        try {
+            const response = JSON.parse(xhr.responseText);
+            
+            if (xhr.status === 200 && response.success) {
+                // Handle success
+                const fullUrl = window.location.origin + response.downloadLink;
+                downloadLink.href = fullUrl;
+                downloadLink.textContent = fullUrl;
+                uploadSuccess.style.display = 'block';
+                resultMessage.textContent = '';
+            } else {
+                // Handle error
+                uploadSuccess.style.display = 'none';
+                resultMessage.textContent = response.message || 'Upload failed. Please try again.';
+            }
+        } catch (e) {
+            // Handle parsing error
+            uploadSuccess.style.display = 'none';
+            resultMessage.textContent = 'Upload failed. Please try again.';
+        } finally {
+            // Always hide progress and enable button
+            progressContainer.style.display = 'none';
+            uploadButton.disabled = false;
+        }
+    };
+
+    xhr.onerror = () => {
+        uploadSuccess.style.display = 'none';
+        resultMessage.textContent = 'Upload failed. Please check your connection.';
+        progressContainer.style.display = 'none';
+        uploadButton.disabled = false;
+    };
+
+    xhr.send(formData);
+}
 
         function copyLink() {
             const linkText = downloadLink.href;

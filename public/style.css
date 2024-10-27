@@ -263,3 +263,19 @@ button:disabled {
 .logo:hover {
     text-decoration: underline; /* Matches other link hover effects */
 }
+
+/* Add these styles to your existing CSS */
+.result-message {
+    width: 100%;
+    margin-top: 1rem;
+    text-align: center;
+}
+
+#resultMessage {
+    color: #ff0000;
+    margin-bottom: 1rem;
+}
+
+#uploadSuccess {
+    margin-top: 1rem;
+}

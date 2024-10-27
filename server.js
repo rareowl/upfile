@@ -52,6 +52,12 @@ async function initializeSettings() {
 }
 initializeSettings();
 
+// Add this after the Settings model definition
+const getFileSize = async () => {
+    const settings = await Settings.findOne();
+    return settings ? settings.maxUploadSize : 100 * 1024 * 1024; // Default 100MB if no settings
+};
+
 // Middleware
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'public'));
@@ -65,6 +71,8 @@ app.use(session({
     cookie: { secure: false } // set to true if using HTTPS
 }));
 
+
+
 // Multer configuration
 const storage = multer.diskStorage({
     destination: './uploads/',
@@ -74,12 +82,21 @@ const storage = multer.diskStorage({
     }
 });
 
-const upload = multer({ storage: storage });
-
-// Create uploads folder if it doesn't exist
-if (!fs.existsSync('./uploads')) {
-    fs.mkdirSync('./uploads');
-}
+const upload = multer({
+    storage: storage,
+    fileFilter: async (req, file, cb) => {
+        try {
+            const maxSize = await getFileSize();
+            const fileSize = parseInt(req.headers['content-length']);
+            if (fileSize > maxSize) {
+                return cb(new Error('File size exceeds the limit'));
+            }
+            cb(null, true);
+        } catch (error) {
+            cb(error);
+        }
+    }
+});
 
 const fileLinks = {};
 
@@ -196,27 +213,56 @@ app.post('/admin-settings', requireAdmin, async (req, res) => {
 });
 
 // File upload routes
-app.post('/upload', upload.single('file'), (req, res) => {
-    if (!req.file) {
-        return res.status(400).json({
+app.post('/upload', async (req, res) => {
+    try {
+        const maxSize = await getFileSize();
+        const fileSize = parseInt(req.headers['content-length']);
+        
+        if (fileSize > maxSize) {
+            const maxSizeMB = (maxSize / (1024 * 1024)).toFixed(2);
+            return res.status(400).json({
+                success: false,
+                message: `File size exceeds the limit of ${maxSizeMB} MB`
+            });
+        }
+
+        upload.single('file')(req, res, function(err) {
+            if (err) {
+                console.error('Upload error:', err);
+                return res.status(400).json({
+                    success: false,
+                    message: err.message || 'Error uploading file'
+                });
+            }
+
+            if (!req.file) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'No file uploaded.'
+                });
+            }
+
+            const downloadId = crypto.randomBytes(8).toString('hex');
+            const filePath = path.join(__dirname, 'uploads', req.file.filename);
+            fileLinks[downloadId] = { 
+                filePath: filePath, 
+                fileName: req.file.originalname 
+            };
+            
+            const downloadLink = `/download/${downloadId}`;
+            res.json({
+                success: true,
+                message: 'File uploaded successfully!',
+                downloadLink: downloadLink
+            });
+        });
+    } catch (error) {
+        console.error('Upload error:', error);
+        res.status(500).json({
             success: false,
-            message: 'No file uploaded.'
+            message: 'Server error during upload'
         });
     }
-
-    const downloadId = crypto.randomBytes(8).toString('hex');
-    const filePath = path.join(__dirname, 'uploads', req.file.filename);
-    fileLinks[downloadId] = { 
-        filePath: filePath, 
-        fileName: req.file.originalname 
-    };
-    
-    const downloadLink = `/download/${downloadId}`;
-    res.json({
-        success: true,
-        message: 'File uploaded successfully!',
-        downloadLink: downloadLink
-    });
 });
 
 app.get('/download/:id', (req, res) => {
