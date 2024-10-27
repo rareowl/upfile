@@ -170,6 +170,11 @@ app.get('/logout', (req, res) => {
     res.redirect('/');
 });
 
+// Add this with your other routes
+app.get('/about', (req, res) => {
+    res.render('about');
+});
+
 // Admin middleware
 const requireAdmin = async (req, res, next) => {
     if (!req.session.userId) {
