@@ -9,7 +9,11 @@
 <body>
     <a href="/" class="logo">upfile.1</a>
     <div class="auth-links">
-        <a href="/register">register</a> | <a href="/login">login</a>
+        <% if (session.userId) { %>
+            <a href="/profile">profile</a> | <a href="/logout">logout</a>
+        <% } else { %>
+            <a href="/register">register</a> | <a href="/login">login</a>
+        <% } %>
     </div>
     <div class="container">
         <div class="upload-form">

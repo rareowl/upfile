@@ -24,6 +24,7 @@
 /* Update your existing body styles */
 body {
     min-height: 100vh;
+    background-color: var(--bg-color);
     color: var(--text-color);
     display: flex;
     flex-direction: column;
@@ -31,6 +32,10 @@ body {
     transition: background-color 0.3s, color 0.3s;
 }
 
+/* Update link colors */
+.logo, .auth-links a, .footer a {
+    color: var(--text-color);
+}
 
 button {
     background-color: var(--text-color);
@@ -57,6 +62,11 @@ select {
     background-color: var(--link-bg);
 }
 
+/* Update link container links */
+.link-container a {
+    color: var(--text-color);
+}
+
 /* Reset and base styles */
 * {
     margin: 0;
@@ -67,6 +77,7 @@ select {
 
 body {
     min-height: 100vh;
+    background-color: var(--bg-color);
     color: var(--text-color);
     display: flex;
     flex-direction: column;
@@ -130,7 +141,6 @@ input[type="file"] {/* Reset and base styles */
         font-weight: bold;
         color: #1a1a1a;
     }
-
     
     /* Main container */
     .container {
@@ -332,35 +342,25 @@ input[type="file"] {/* Reset and base styles */
         text-align: center;
     }
     
+
   
-/* Admin link styles */
+/* Admin link color fix */
 .admin-link a,
-.admin-link a:link,
-.admin-link a:visited,
-.admin-link a:hover,
-.admin-link a:active {
-    color: var(--text-color) !important; /* Force the text color to match the default */
+.admin-link a:visited {
+    color: var(--text-color) !important;
     text-decoration: none;
     transition: color 0.3s;
-    font-family: 'Courier New', monospace;
 }
 
 .admin-link a:hover {
     color: var(--text-color) !important;
     text-decoration: underline;
 }
-
-/* Admin styles */
-.admin-link {
-    margin-top: 2rem;
-    text-align: center;
-}
-
-
-.admin-settings {
+    
+    .admin-settings {
         width: 100%;
         max-width: 500px;
-}
+    }
     
     .settings-form {
         margin-top: 2rem;
@@ -691,5 +691,144 @@ button:disabled {
 .auth-links a:hover,
 .footer a:hover {
     color: var(--text-color) !important;
+    text-decoration: underline;
+}
+
+.downloaded-files-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    max-width: 600px;
+    margin: 2rem auto;
+    padding: 1rem;
+    background-color: var(--container-bg);
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.downloaded-files-container h3 {
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+    color: var(--text-color);
+}
+
+.downloaded-files-list {
+    list-style-type: none;
+    padding: 0;
+    width: 100%;
+}
+
+.downloaded-file-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    padding: 1rem;
+    background-color: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+}
+
+.file-name {
+    font-weight: bold;
+    font-size: 1rem;
+    color: var(--text-color);
+}
+
+.download-date {
+    font-size: 0.9rem;
+    color: #666;
+    margin-top: 0.5rem;
+}
+
+.delete-form {
+    margin-top: 0.5rem;
+}
+
+.delete-button {
+    background-color: #ff4d4d;
+    color: #fff;
+    border: none;
+    padding: 0.4rem 0.8rem;
+    font-size: 0.9rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.delete-button:hover {
+    background-color: #ff3333;
+}
+
+.no-downloads {
+    font-size: 1rem;
+    color: #888;
+    margin-top: 1rem;
+}
+
+.uploaded-files-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    max-width: 600px;
+    margin: 2rem auto;
+    padding: 1rem;
+    background-color: var(--container-bg);
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.uploaded-files-container h3 {
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+    color: var(--text-color);
+}
+
+.uploaded-files-list {
+    list-style-type: none;
+    padding: 0;
+    width: 100%;
+}
+
+.uploaded-file-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    padding: 1rem;
+    background-color: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+}
+
+.file-name {
+    font-weight: bold;
+    font-size: 1rem;
+    color: var(--text-color);
+}
+
+.upload-date {
+    font-size: 0.9rem;
+    color: #666;
+    margin-top: 0.5rem;
+}
+
+.no-uploads {
+    font-size: 1rem;
+    color: #888;
+    margin-top: 1rem;
+}
+
+.auth-links a {
+    color: var(--text-color);
+    font-family: 'Courier New', monospace;
+    text-decoration: none;
+}
+
+.auth-links a:hover {
     text-decoration: underline;
 }

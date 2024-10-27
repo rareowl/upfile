@@ -1,0 +1,33 @@
+<!-- Create views/test-throttling.ejs -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Throttling Test</title>
+    <script>
+    async function testDownload() {
+        const startTime = Date.now();
+        const response = await fetch('/download/your-test-file-id/download');
+        const reader = response.body.getReader();
+        let receivedLength = 0;
+
+        while(true) {
+            const {done, value} = await reader.read();
+            if (done) break;
+            receivedLength += value.length;
+            
+            const elapsedSeconds = (Date.now() - startTime) / 1000;
+            const speedMBps = (receivedLength / (1024 * 1024)) / elapsedSeconds;
+            
+            document.getElementById('stats').textContent = 
+                `Downloaded: ${(receivedLength / (1024 * 1024)).toFixed(2)} MB
+                 Speed: ${speedMBps.toFixed(2)} MB/s
+                 Time: ${elapsedSeconds.toFixed(1)} seconds`;
+        }
+    }
+    </script>
+</head>
+<body>
+    <button onclick="testDownload()">Start Test Download</button>
+    <pre id="stats"></pre>
+</body>
+</html>

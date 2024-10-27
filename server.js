@@ -10,6 +10,7 @@ const bodyParser = require('body-parser');
 const stream = require('stream');
 const util = require('util');
 
+
 const app = express();
 const port = 3000;
 
@@ -23,13 +24,29 @@ mongoose.connect('mongodb://localhost/upfile', {
     console.error('MongoDB connection error:', err);
 });
 
-// User Schema
 const userSchema = new mongoose.Schema({
+    // Existing fields
     username: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     email: { type: String, required: true, unique: true },
     isAdmin: { type: Boolean, default: false },
-    createdAt: { type: Date, default: Date.now }
+    createdAt: { type: Date, default: Date.now },
+
+    // Fields for tracking files
+    downloadedFiles: [
+        {
+            fileId: String,
+            fileName: String,
+            downloadDate: { type: Date, default: Date.now }
+        }
+    ],
+    uploadedFiles: [
+        {
+            fileId: String,
+            fileName: String,
+            uploadDate: { type: Date, default: Date.now }
+        }
+    ]
 });
 
 const User = mongoose.model('User', userSchema);
@@ -81,7 +98,10 @@ app.use(session({
     secret: 'your-secret-key',
     resave: false,
     saveUninitialized: false,
-    cookie: { secure: false } // set to true if using HTTPS
+    cookie: {
+        secure: false, // Set to true if using HTTPS
+        maxAge: 7 * 24 * 60 * 60 * 1000 // 1 week in milliseconds
+    }
 }));
 
 function createThrottledStream(readStream, speedBytes) {
@@ -113,31 +133,11 @@ function createThrottledStream(readStream, speedBytes) {
     return throttle;
 }
 
-const trackDownload = async (req, res, next) => {
-    try {
-        const ip = req.ip;
-        const settings = await Settings.findOne();
-        const maxDownloadSize = settings ? settings.maxDownloadSize : 2 * 1024 * 1024 * 1024;
+app.use((req, res, next) => {
+    res.locals.session = req.session;
+    next();
+});
 
-        let tracking = await DownloadTracking.findOne({ ip });
-        
-        // If no tracking exists or it's been more than 24 hours, create/reset tracking
-        if (!tracking || (Date.now() - tracking.lastReset > 24 * 60 * 60 * 1000)) {
-            tracking = new DownloadTracking({ 
-                ip, 
-                bytesDownloaded: 0, 
-                lastReset: new Date() 
-            });
-        }
-
-        // Store tracking object in request for later use
-        req.downloadTracking = tracking;
-        next();
-    } catch (error) {
-        console.error('Download tracking error:', error);
-        next(error);
-    }
-};
 
 // Dark Theme
 app.use(async (req, res, next) => {
@@ -151,6 +151,36 @@ app.use(async (req, res, next) => {
         next();
     }
 });
+
+const trackDownload = async (req, res, next) => {
+    try {
+        const ip = req.ip;
+        const settings = await Settings.findOne();
+        const maxDownloadSize = settings ? settings.maxDownloadSize : 2 * 1024 * 1024 * 1024;
+
+        let tracking = await DownloadTracking.findOne({ ip });
+
+        if (!tracking || (Date.now() - tracking.lastReset > 24 * 60 * 60 * 1000)) {
+            tracking = new DownloadTracking({ ip, bytesDownloaded: 0, lastReset: new Date() });
+        }
+
+        // Update user’s downloaded files if authenticated
+        if (req.session.userId) {
+            const user = await User.findById(req.session.userId);
+            user.downloadedFiles.push({
+                fileId: req.params.id, // fileId from route parameter
+                fileName: fileInfo.fileName // Retrieved from fileLinks object
+            });
+            await user.save();
+        }
+
+        req.downloadTracking = tracking;
+        next();
+    } catch (error) {
+        console.error('Download tracking error:', error);
+        next(error);
+    }
+};
 
 
 
@@ -194,7 +224,40 @@ app.get('/', (req, res) => {
     res.render('index');  // Instead of res.sendFile()
 });
 
-app.get('/check-download-status', trackDownload, async (req, res) => {
+app.get('/check-download-status', (async (req, res, next) => {
+        try {
+            const ip = req.ip;
+            const settings = await Settings.findOne();
+            const maxDownloadSize = settings ? settings.maxDownloadSize : 2 * 1024 * 1024 * 1024;
+
+            let tracking = await DownloadTracking.findOne({ ip });
+
+            if (!tracking || (Date.now() - tracking.lastReset > 24 * 60 * 60 * 1000)) {
+                tracking = new DownloadTracking({ ip, bytesDownloaded: 0, lastReset: new Date() });
+            }
+
+            // Save download to user's downloaded files if logged in
+            if (req.session.userId && req.params.id) {
+                const user = await User.findById(req.session.userId);
+                const fileInfo = fileLinks[req.params.id];
+
+                // Check if file exists in fileLinks and then push download record
+                if (fileInfo) {
+                    user.downloadedFiles.push({
+                        fileId: req.params.id,
+                        fileName: fileInfo.fileName
+                    });
+                    await user.save();
+                }
+            }
+
+            req.downloadTracking = tracking;
+            next();
+        } catch (error) {
+            console.error('Download tracking error:', error);
+            next(error);
+        }
+    }), async (req, res) => {
     try {
         const tracking = req.downloadTracking;
         const settings = await Settings.findOne();
@@ -206,6 +269,83 @@ app.get('/check-download-status', trackDownload, async (req, res) => {
     } catch (error) {
         console.error('Error checking download status:', error);
         res.status(500).json({ error: 'Error checking download status' });
+    }
+});
+
+// Add this temporary route to server.js for testing
+app.get('/generate-test-file', async (req, res) => {
+    const filePath = path.join(__dirname, 'uploads', 'test-large-file');
+    const fileSize = 100 * 1024 * 1024; // 100MB
+    
+    await new Promise((resolve, reject) => {
+        const writeStream = fs.createWriteStream(filePath);
+        let bytesWritten = 0;
+        
+        function writeChunk() {
+            const chunkSize = 1024 * 1024; // 1MB chunks
+            const buffer = Buffer.alloc(chunkSize, 'x');
+            
+            if (bytesWritten < fileSize) {
+                writeStream.write(buffer);
+                bytesWritten += chunkSize;
+                setImmediate(writeChunk);
+            } else {
+                writeStream.end();
+                resolve();
+            }
+        }
+        
+        writeChunk();
+    });
+    
+    res.send('Test file generated');
+});
+
+// Add this to server.js to help with testing
+app.get('/test-throttling', (req, res) => {
+    res.render('test-throttling');
+});
+
+// Add to server.js
+app.get('/test-throttling-setup', async (req, res) => {
+    try {
+        // Generate a 100MB test file
+        const testFilePath = path.join(__dirname, 'uploads', 'throttle-test-file');
+        const fileSize = 100 * 1024 * 1024; // 100MB
+        
+        // Generate file if it doesn't exist
+        if (!fs.existsSync(testFilePath)) {
+            const writeStream = fs.createWriteStream(testFilePath);
+            const buffer = Buffer.alloc(1024 * 1024, 'x'); // 1MB chunk
+            
+            for(let i = 0; i < 100; i++) { // Write 100 chunks of 1MB
+                writeStream.write(buffer);
+            }
+            writeStream.end();
+        }
+
+        // Create a download link
+        const downloadId = crypto.randomBytes(8).toString('hex');
+        fileLinks[downloadId] = {
+            filePath: testFilePath,
+            fileName: 'throttle-test-file'
+        };
+
+        res.send(`
+            <h1>Throttling Test</h1>
+            <p>Test file created (100MB)</p>
+            <p>Download ID: ${downloadId}</p>
+            <p><a href="/download/${downloadId}">Download Link</a></p>
+            <p>Steps to test:</p>
+            <ol>
+                <li>Set throttle speed to 0.1 MB/s in admin settings</li>
+                <li>Set download limit to 1 MB</li>
+                <li>Open browser dev tools (Network tab)</li>
+                <li>Click download link and monitor speed</li>
+            </ol>
+        `);
+    } catch (error) {
+        res.status(500).send('Error setting up test: ' + error.message);
     }
 });
 
@@ -261,9 +401,60 @@ app.get('/profile', requireAuth, async (req, res) => {
     }
 });
 
+app.post('/delete-download/:fileId', requireAuth, async (req, res) => {
+    try {
+        const user = await User.findById(req.session.userId);
+        user.downloadedFiles = user.downloadedFiles.filter(file => file.fileId !== req.params.fileId);
+        await user.save();
+        res.redirect('/profile');
+    } catch (error) {
+        console.error('Error deleting download:', error);
+        res.status(500).send('Error deleting download.');
+    }
+});
+
+app.post('/delete-upload/:fileId', requireAuth, async (req, res) => {
+    try {
+        const user = await User.findById(req.session.userId);
+        const fileToDelete = user.uploadedFiles.find(file => file.fileId === req.params.fileId);
+
+        if (fileToDelete) {
+            // Remove the file from the filesystem
+            const filePath = fileLinks[req.params.fileId]?.filePath;
+            if (filePath) {
+                fs.unlink(filePath, (err) => {
+                    if (err) {
+                        console.error('Error deleting file from server:', err);
+                    } else {
+                        console.log('File successfully deleted from server:', filePath);
+                    }
+                });
+                
+                // Remove file from fileLinks
+                delete fileLinks[req.params.fileId];
+            }
+
+            // Remove the file from user's uploadedFiles array
+            user.uploadedFiles = user.uploadedFiles.filter(file => file.fileId !== req.params.fileId);
+            await user.save();
+        }
+        
+        res.redirect('/profile');
+    } catch (error) {
+        console.error('Error deleting upload:', error);
+        res.status(500).send('Error deleting upload.');
+    }
+});
+
 app.get('/logout', (req, res) => {
-    req.session.destroy();
-    res.redirect('/');
+    req.session.destroy((err) => {
+        if (err) {
+            console.error('Logout error:', err);
+            res.redirect('/profile');
+        } else {
+            res.redirect('/');
+        }
+    });
 });
 
 // Add this with your other routes
@@ -352,11 +543,12 @@ app.get('/get-max-file-size', async (req, res) => {
 });
 
 // File upload routes
-app.post('/upload', async (req, res) => {
+app.post('/upload', upload.single('file'), async (req, res) => {
     try {
         const maxSize = await getFileSize();
         const fileSize = parseInt(req.headers['content-length']);
-        
+
+        // Check if file size exceeds the limit
         if (fileSize > maxSize) {
             const maxSizeMB = (maxSize / (1024 * 1024)).toFixed(2);
             return res.status(400).json({
@@ -365,44 +557,49 @@ app.post('/upload', async (req, res) => {
             });
         }
 
-        upload.single('file')(req, res, function(err) {
-            if (err) {
-                console.error('Upload error:', err);
-                return res.status(400).json({
-                    success: false,
-                    message: err.message || 'Error uploading file'
-                });
-            }
+        if (!req.file) {
+            return res.status(400).json({
+                success: false,
+                message: 'No file uploaded.'
+            });
+        }
 
-            if (!req.file) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'No file uploaded.'
-                });
-            }
-
+        // Only save upload info if user is authenticated
+        if (req.session.userId) {
+            const user = await User.findById(req.session.userId);
             const downloadId = crypto.randomBytes(8).toString('hex');
-            const filePath = path.join(__dirname, 'uploads', req.file.filename);
-            fileLinks[downloadId] = { 
-                filePath: filePath, 
-                fileName: req.file.originalname 
+
+            // Store file information for future downloads
+            fileLinks[downloadId] = {
+                filePath: req.file.path,
+                fileName: req.file.originalname
             };
             
+            user.uploadedFiles.push({
+                fileId: downloadId,
+                fileName: req.file.originalname
+            });
+            await user.save();
+            
             const downloadLink = `/download/${downloadId}`;
-            res.json({
+            return res.json({
                 success: true,
                 message: 'File uploaded successfully!',
-                downloadLink: downloadLink
+                downloadLink
             });
-        });
+        } else {
+            return res.status(403).json({ success: false, message: 'User not authenticated.' });
+        }
     } catch (error) {
         console.error('Upload error:', error);
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
-            message: 'Server error during upload'
+            message: 'Server error during upload.'
         });
     }
 });
+
+
 
 app.get('/download/:id', (req, res) => {
     const downloadId = req.params.id;
@@ -421,7 +618,40 @@ app.get('/download/:id', (req, res) => {
     });
 });
 
-app.get('/download/:id/download', trackDownload, async (req, res) => {
+app.get('/download/:id/download', (async (req, res, next) => {
+        try {
+            const ip = req.ip;
+            const settings = await Settings.findOne();
+            const maxDownloadSize = settings ? settings.maxDownloadSize : 2 * 1024 * 1024 * 1024;
+
+            let tracking = await DownloadTracking.findOne({ ip });
+
+            if (!tracking || (Date.now() - tracking.lastReset > 24 * 60 * 60 * 1000)) {
+                tracking = new DownloadTracking({ ip, bytesDownloaded: 0, lastReset: new Date() });
+            }
+
+            // Save download to user's downloaded files if logged in
+            if (req.session.userId && req.params.id) {
+                const user = await User.findById(req.session.userId);
+                const fileInfo = fileLinks[req.params.id];
+
+                // Check if file exists in fileLinks and then push download record
+                if (fileInfo) {
+                    user.downloadedFiles.push({
+                        fileId: req.params.id,
+                        fileName: fileInfo.fileName
+                    });
+                    await user.save();
+                }
+            }
+
+            req.downloadTracking = tracking;
+            next();
+        } catch (error) {
+            console.error('Download tracking error:', error);
+            next(error);
+        }
+    }), async (req, res) => {
     const downloadId = req.params.id;
     const fileInfo = fileLinks[downloadId];
 
