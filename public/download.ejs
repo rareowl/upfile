@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="<%= theme %>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -24,8 +24,20 @@
     </div>
 
     <script>
-        function startDownload() {
-            window.location.href = window.location.pathname + '/download';
+        async function startDownload() {
+            try {
+                const response = await fetch('/check-download-status');
+                const data = await response.json();
+                
+                if (data.willBeThrottled) {
+                    alert('You have exceeded your download limit. Download speed will be throttled.');
+                }
+                
+                window.location.href = window.location.pathname + '/download';
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error starting download. Please try again.');
+            }
         }
     </script>
     <div class="footer">

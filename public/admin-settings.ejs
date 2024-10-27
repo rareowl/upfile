@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="<%= theme %>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -15,74 +15,132 @@
     <div class="container">
         <div class="admin-settings">
             <h2>Admin Settings</h2>
-            <form action="/admin-settings" method="POST" class="settings-form">
-                <div class="form-group">
-                    <label for="maxUploadSize">Maximum Upload Size (MB):</label>
-                    <input type="number" 
-                           id="maxUploadSize" 
-                           name="maxUploadSize" 
-                           value="<%= Math.floor(settings.maxUploadSize / (1024 * 1024)) %>" 
-                           required>
-                </div>
-                <button type="submit">Save Settings</button>
-            </form>
+            
+            <div class="settings-tabs">
+                <button class="tab-button active" onclick="openTab('general')">general</button>
+                <button class="tab-button" onclick="openTab('display')">display</button>
+            </div>
+
+            <!-- General Settings Tab -->
+            <div id="general" class="tab-content active">
+                <form action="/admin-settings/general" method="POST" class="settings-form">
+                    <div class="form-group">
+                        <label for="maxUploadSize">maximum upload size (MB):</label>
+                        <input type="number" 
+                               id="maxUploadSize" 
+                               name="maxUploadSize" 
+                               value="<%= Math.floor(settings.maxUploadSize / (1024 * 1024)) %>" 
+                               required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="maxDownloadSize">download limit before throttling (GB):</label>
+                        <input type="number" 
+                               id="maxDownloadSize" 
+                               name="maxDownloadSize" 
+                               value="<%= Math.floor(settings.maxDownloadSize / (1024 * 1024 * 1024)) %>" 
+                               required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="throttleSpeed">throttled download speed (MB/s):</label>
+                        <input type="number" 
+                               id="throttleSpeed" 
+                               name="throttleSpeed" 
+                               value="<%= Math.floor(settings.throttleSpeed / (1024 * 1024)) %>" 
+                               required>
+                    </div>
+
+                    <button type="submit">save general settings</button>
+                </form>
+            </div>
+
+            <!-- Display Settings Tab -->
+            <div id="display" class="tab-content">
+                <form action="/admin-settings/display" method="POST" class="settings-form">
+                    <div class="form-group">
+                        <label for="defaultTheme">default theme:</label>
+                        <select id="defaultTheme" name="defaultTheme">
+                            <option value="light" <%= settings.defaultTheme === 'light' ? 'selected' : '' %>>light</option>
+                            <option value="dark" <%= settings.defaultTheme === 'dark' ? 'selected' : '' %>>dark</option>
+                        </select>
+                    </div>
+
+                    <button type="submit">save display settings</button>
+                </form>
+            </div>
+
             <div class="settings-info">
-                <p>Last updated: <%= settings.lastUpdated.toLocaleString() %></p>
+                <p>last updated: <%= settings.lastUpdated.toLocaleString() %></p>
             </div>
         </div>
     </div>
 
     <style>
-        .admin-settings {
-            max-width: 500px;
-            margin: 0 auto;
-            padding: 2rem;
-            background-color: #f9f9f9;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-
-        .admin-settings h2 {
-            text-align: center;
-            margin-bottom: 2rem;
-        }
-
-        .settings-form {
+        .settings-tabs {
             display: flex;
-            flex-direction: column;
             gap: 1rem;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid #1a1a1a;
+            padding-bottom: 1rem;
         }
 
-        .form-group {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-
-        .form-group label {
+        .tab-button {
+            background: none;
+            border: none;
             color: #666;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 1rem;
+            padding: 0.5rem 1rem;
+            transition: color 0.2s;
         }
 
-        .form-group input {
+        .tab-button:hover {
+            color: #1a1a1a;
+        }
+
+        .tab-button.active {
+            color: #1a1a1a;
+            border-bottom: 2px solid #1a1a1a;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        select {
+            width: 100%;
             padding: 0.5rem;
             border: 1px solid #1a1a1a;
             border-radius: 4px;
             font-family: 'Courier New', monospace;
-        }
-
-        button {
-            margin-top: 1rem;
-        }
-
-        .settings-info {
-            margin-top: 2rem;
-            text-align: center;
-            font-size: 0.9rem;
-            color: #666;
+            background-color: #ffffff;
         }
     </style>
-    <div class="footer">
-        <a href="/about">about us</a>
-    </div>
+
+    <script>
+        function openTab(tabName) {
+            // Hide all tab content
+            const tabContents = document.getElementsByClassName('tab-content');
+            for (let content of tabContents) {
+                content.classList.remove('active');
+            }
+
+            // Deactivate all tabs
+            const tabButtons = document.getElementsByClassName('tab-button');
+            for (let button of tabButtons) {
+                button.classList.remove('active');
+            }
+
+            // Show selected tab content and activate tab
+            document.getElementById(tabName).classList.add('active');
+            event.currentTarget.classList.add('active');
+        }
+    </script>
 </body>
 </html>
