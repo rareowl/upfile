@@ -1,0 +1,395 @@
+/**
+ * Main CSS Stylesheet
+ * 
+ * This stylesheet contains all styles for the file sharing application,
+ * including theme support, layout components, and interactive elements.
+ */
+
+/* ==========================================================================
+   Theme Variables
+   ========================================================================== */
+
+   :root {
+    /* Light theme default variables */
+    --bg-color: #ffffff;
+    --text-color: #1a1a1a;
+    --border-color: #1a1a1a;
+    --hover-bg: #333;
+    --input-bg: #ffffff;
+    --container-bg: #f9f9f9;
+    --link-bg: #f5f5f5;
+}
+
+[data-theme="dark"] {
+    /* Dark theme overrides */
+    --bg-color: #1a1a1a;
+    --text-color: #ffffff;
+    --border-color: #ffffff;
+    --hover-bg: #333;
+    --input-bg: #2d2d2d;
+    --container-bg: #2d2d2d;
+    --link-bg: #2d2d2d;
+}
+
+/* ==========================================================================
+   Base Styles & Reset
+   ========================================================================== */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Courier New', monospace;
+}
+
+body {
+    min-height: 100vh;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    display: flex;
+    flex-direction: column;
+    padding: 2rem;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+/* ==========================================================================
+   Layout Components
+   ========================================================================== */
+
+/* Main Container */
+.container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+/* Header Elements */
+.logo {
+    position: fixed;
+    top: 2rem;
+    left: 2rem;
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: var(--text-color);
+    text-decoration: none;
+    transition: color 0.3s;
+}
+
+.logo:hover {
+    text-decoration: underline;
+}
+
+/* Authentication Links */
+.auth-links {
+    position: fixed;
+    top: 2rem;
+    right: 2rem;
+    font-size: 1rem;
+}
+
+.auth-links a {
+    color: var(--text-color) !important;
+    text-decoration: none;
+    font-family: 'Courier New', monospace;
+    transition: color 0.3s;
+}
+
+.auth-links a:hover {
+    text-decoration: underline;
+}
+
+/* Footer */
+.footer {
+    position: fixed;
+    bottom: 2rem;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 1rem;
+}
+
+.footer a {
+    color: var(--text-color) !important;
+    text-decoration: none;
+    font-family: 'Courier New', monospace;
+    transition: color 0.3s;
+}
+
+.footer a:hover {
+    text-decoration: underline;
+}
+
+/* ==========================================================================
+   Form Elements
+   ========================================================================== */
+
+/* Upload Form */
+.upload-form {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+/* Profile Information */
+.profile-info {
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto;  /* Centers the profile info */
+}
+
+.info-row {
+    display: flex;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+    align-items: baseline;
+}
+
+.info-row .label {
+    min-width: 4rem;
+    color: #666;
+    margin-right: 1rem;  /* Adds spacing between label and value */
+}
+
+.info-row .value {
+    word-break: break-all;
+    color: var(--text-color);
+}
+
+/* Input Fields */
+input[type="file"],
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+select {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 0.9rem;
+    background-color: var(--input-bg);
+    color: var(--text-color);
+}
+
+/* Buttons */
+button {
+    background-color: var(--text-color);
+    color: var(--bg-color);
+    border: none;
+    padding: 0.8rem 1.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background-color 0.2s;
+}
+
+button:hover {
+    background-color: var(--text-color);
+    color: var(--bg-color);
+}
+
+button:disabled {
+    background-color: var(--text-color);
+    color: var(--bg-color);
+}
+
+/* Delete Button */
+.delete-button {
+    background-color: #ff4d4d;
+    color: #fff;
+    padding: 0.4rem 0.8rem;
+    font-size: 0.9rem;
+    transition: background-color 0.2s;
+}
+
+.delete-button:hover {
+    background-color: #ff3333;
+}
+
+/* ==========================================================================
+   Progress Elements
+   ========================================================================== */
+
+.progress-container {
+    width: 100%;
+    margin: 1rem 0;
+}
+
+.progress {
+    width: 100%;
+    height: 4px;
+    background-color: #eee;
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    height: 100%;
+    background-color: var(--text-color);
+    transition: width 0.3s ease;
+}
+
+.progress-text {
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+/* ==========================================================================
+   File Display Components
+   ========================================================================== */
+
+/* Link Container */
+.link-container {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    padding: 1rem;
+    background-color: var(--link-bg);
+    border-radius: 4px;
+    word-break: break-all;
+}
+
+.link-container a {
+    flex: 1;
+    color: var(--text-color);
+    text-decoration: none;
+    font-size: 0.9rem;
+}
+
+.link-container a:hover {
+    text-decoration: underline;
+}
+
+/* Downloaded Files Container */
+.downloaded-files-container,
+.uploaded-files-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    max-width: 600px;
+    margin: 2rem auto;
+    padding: 1rem;
+    background-color: var(--container-bg);
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.downloaded-files-list,
+.uploaded-files-list {
+    list-style-type: none;
+    padding: 0;
+    width: 100%;
+}
+
+.downloaded-file-item,
+.uploaded-file-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    padding: 1rem;
+    background-color: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+}
+
+/* ==========================================================================
+   Authentication Forms
+   ========================================================================== */
+
+.auth-form {
+    width: 100%;
+    max-width: 400px;
+    padding: 2rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    color: var(--text-color);
+}
+
+.auth-form h2 {
+    margin-bottom: 1.5rem;
+    text-align: center;
+    color: var(--text-color);
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: var(--text-color);
+}
+
+/* ==========================================================================
+   Admin Styles
+   ========================================================================== */
+
+/* Admin Settings */
+.admin-link {
+    width: 100%;
+    text-align: center;
+    display: flex;
+    justify-content: center;
+    margin: 2rem auto;
+}
+.admin-link a,
+.admin-link a:visited {
+    color: var(--text-color) !important;
+    text-decoration: none;
+    transition: color 0.3s;
+}
+
+.admin-link a:hover {
+    text-decoration: underline;
+}
+
+.settings-form {
+    margin-top: 2rem;
+    color: var(--text-color);
+}
+
+/* ==========================================================================
+   Utility Classes
+   ========================================================================== */
+
+.file-name {
+    font-weight: bold;
+    font-size: 1rem;
+    color: var(--text-color);
+}
+
+.download-date,
+.upload-date {
+    font-size: 0.9rem;
+    color: #666;
+    margin-top: 0.5rem;
+}
+
+.no-downloads,
+.no-uploads {
+    font-size: 1rem;
+    color: #888;
+    margin-top: 1rem;
+}
+
+#resultMessage {
+    color: #ff0000;
+    margin: 1rem 0;
+    text-align: center;
+    font-weight: bold;
+}
+
+#uploadSuccess {
+    margin-top: 1rem;
+}

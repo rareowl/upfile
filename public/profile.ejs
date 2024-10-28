@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="<%= theme %>">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile - upfile.1</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <a href="/" class="logo">upfile.1</a>
+    <div class="auth-links">
+        <a href="/logout">logout</a>
+    </div>
+    
+    <div class="container">
+        <div class="profile-info">
+            <h2>Profile</h2>
+            <div class="info-row">
+                
+                <span class="label">username:</span>
+                <span class="value"><%= user.username %></span>
+            </div>
+            <div class="info-row">
+                <span class="label">email:</span>
+                <span class="value"><%= user.email %></span>
+            </div>
+            <div class="info-row">
+                <span class="label">joined:</span>
+                <span class="value"><%= user.createdAt.toLocaleDateString() %></span>
+            </div>
+        </div>
+    </div>
+    <div class="uploaded-files-container">
+        <h3>Your Uploaded Files</h3>
+        <% if (user.uploadedFiles.length > 0) { %>
+            <ul class="uploaded-files-list">
+                <% user.uploadedFiles.forEach(file => { %>
+                    <li class="uploaded-file-item">
+                        <span class="file-name"><%= file.fileName %></span>
+                        <span class="upload-date">Uploaded on <%= file.uploadDate.toLocaleDateString() %></span>
+                        <form action="/delete-upload/<%= file.fileId %>" method="POST" class="delete-form">
+                            <button type="submit" class="delete-button">Remove</button>
+                        </form>
+                    </li>
+                <% }) %>
+            </ul>
+        <% } else { %>
+            <p class="no-uploads">No uploaded files.</p>
+        <% } %>
+    </div>
+    <% /* %>
+    <div class="downloaded-files-container">
+        <h3>Your Downloaded Files</h3>
+        <% if (user.downloadedFiles.length > 0) { %>
+            <ul class="downloaded-files-list">
+                <% user.downloadedFiles.forEach(file => { %>
+                    <li class="downloaded-file-item">
+                        <span class="file-name"><%= file.fileName %></span>
+                        <span class="download-date">Downloaded on <%= file.downloadDate.toLocaleDateString() %></span>
+                        <form action="/delete-download/<%= file.fileId %>" method="POST" class="delete-form">
+                            <button type="submit" class="delete-button">Remove</button>
+                        </form>
+                    </li>
+                <% }) %>
+            </ul>
+        <% } else { %>
+            <p class="no-downloads">No downloaded files.</p>
+        <% } %>
+    </div>
+    <% */ %>
+    <% if (user.isAdmin) { %>
+        <div class="admin-section">
+            <div class="admin-link">
+                <a href="/admin-settings">admin settings</a>
+            </div>
+        </div>
+    <% } %>
+    <% if (!user.isAdmin) { %>
+        <div class="footer">
+            <a href="/about">about us</a>
+        </div>
+    <% } %>
+</body>
+</html>

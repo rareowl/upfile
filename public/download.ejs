@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="<%= theme %>">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Download - upfile.1</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <a href="/" class="logo">upfile.1</a>
+    
+    <div class="container">
+        <div class="download-info">
+            <div class="info-row">
+                <span class="label">file:</span>
+                <span class="value"><%= fileName %></span>
+            </div>
+            <div class="info-row">
+                <span class="label">size:</span>
+                <span class="value"><%= fileSize %></span>
+            </div>
+        </div>
+        <button onclick="startDownload()" class="download-button">download</button>
+    </div>
+
+    <script>
+        async function startDownload() {
+            try {
+                const response = await fetch('/check-download-status');
+                const data = await response.json();
+                
+                if (data.willBeThrottled) {
+                    alert('You have exceeded your download limit. Download speed will be throttled.');
+                }
+                
+                window.location.href = window.location.pathname + '/download';
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error starting download. Please try again.');
+            }
+        }
+    </script>
+    <div class="footer">
+        <a href="/about">about us</a>
+    </div>
+</body>
+</html>
