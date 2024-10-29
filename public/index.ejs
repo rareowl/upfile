@@ -77,6 +77,8 @@ async function uploadFile() {
         return;
     }
 
+    
+
     // Add this new size check
     const maxSize = await getMaxFileSize();
     if (maxSize && file.size > maxSize) {

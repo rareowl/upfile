@@ -1,6 +1,16 @@
-/* Find this section at the top of your style.css */
-:root {
-    /* Light theme variables */
+/**
+ * Main CSS Stylesheet
+ * 
+ * This stylesheet contains all styles for the file sharing application,
+ * including theme support, layout components, and interactive elements.
+ */
+
+/* ==========================================================================
+   Theme Variables
+   ========================================================================== */
+
+   :root {
+    /* Light theme default variables */
     --bg-color: #ffffff;
     --text-color: #1a1a1a;
     --border-color: #1a1a1a;
@@ -10,8 +20,8 @@
     --link-bg: #f5f5f5;
 }
 
-/* Dark theme variables */
 [data-theme="dark"] {
+    /* Dark theme overrides */
     --bg-color: #1a1a1a;
     --text-color: #ffffff;
     --border-color: #ffffff;
@@ -21,53 +31,10 @@
     --link-bg: #2d2d2d;
 }
 
-/* Update your existing body styles */
-body {
-    min-height: 100vh;
-    background-color: var(--bg-color);
-    color: var(--text-color);
-    display: flex;
-    flex-direction: column;
-    padding: 2rem;
-    transition: background-color 0.3s, color 0.3s;
-}
+/* ==========================================================================
+   Base Styles & Reset
+   ========================================================================== */
 
-/* Update link colors */
-.logo, .auth-links a, .footer a {
-    color: var(--text-color);
-}
-
-button {
-    background-color: var(--text-color);
-    color: var(--bg-color);
-}
-
-input[type="file"], 
-input[type="text"], 
-input[type="email"], 
-input[type="password"], 
-input[type="number"], 
-select {
-    background-color: var(--input-bg);
-    color: var(--text-color);
-    border-color: var(--border-color);
-}
-
-.admin-settings {
-    background-color: var(--container-bg);
-}
-
-/* Update link container background */
-.link-container {
-    background-color: var(--link-bg);
-}
-
-/* Update link container links */
-.link-container a {
-    color: var(--text-color);
-}
-
-/* Reset and base styles */
 * {
     margin: 0;
     padding: 0;
@@ -85,17 +52,11 @@ body {
     transition: background-color 0.3s, color 0.3s;
 }
 
-/* Logo styling */
-.logo {
-    position: fixed;
-    top: 2rem;
-    left: 2rem;
-    font-size: 1.2rem;
-    font-weight: bold;
-    color: #1a1a1a;
-}
+/* ==========================================================================
+   Layout Components
+   ========================================================================== */
 
-/* Main container */
+/* Main Container */
 .container {
     flex: 1;
     display: flex;
@@ -107,7 +68,67 @@ body {
     padding: 2rem;
 }
 
-/* Upload form */
+/* Header Elements */
+.logo {
+    position: fixed;
+    top: 2rem;
+    left: 2rem;
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: var(--text-color);
+    text-decoration: none;
+    transition: color 0.3s;
+}
+
+.logo:hover {
+    text-decoration: underline;
+}
+
+/* Authentication Links */
+.auth-links {
+    position: fixed;
+    top: 2rem;
+    right: 2rem;
+    font-size: 1rem;
+}
+
+.auth-links a {
+    color: var(--text-color) !important;
+    text-decoration: none;
+    font-family: 'Courier New', monospace;
+    transition: color 0.3s;
+}
+
+.auth-links a:hover {
+    text-decoration: underline;
+}
+
+/* Footer */
+.footer {
+    position: fixed;
+    bottom: 2rem;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 1rem;
+}
+
+.footer a {
+    color: var(--text-color) !important;
+    text-decoration: none;
+    font-family: 'Courier New', monospace;
+    transition: color 0.3s;
+}
+
+.footer a:hover {
+    text-decoration: underline;
+}
+
+/* ==========================================================================
+   Form Elements
+   ========================================================================== */
+
+/* Upload Form */
 .upload-form {
     width: 100%;
     display: flex;
@@ -115,320 +136,48 @@ body {
     gap: 1rem;
 }
 
-input[type="file"] {/* Reset and base styles */
-    * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-        font-family: 'Courier New', monospace;
-    }
-    
-    body {
-        min-height: 100vh;
-        background-color: #ffffff;
-        color: #1a1a1a;
-        display: flex;
-        flex-direction: column;
-        padding: 2rem;
-    }
-    
-    /* Logo styling */
-    .logo {
-        position: fixed;
-        top: 2rem;
-        left: 2rem;
-        font-size: 1.2rem;
-        font-weight: bold;
-        color: #1a1a1a;
-    }
-    
-    /* Main container */
-    .container {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        max-width: 600px;
-        margin: 0 auto;
-        padding: 2rem;
-    }
-    
-    /* Upload form */
-    .upload-form {
-        width: 100%;
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-    }
-    
-    input[type="file"] {
-        width: 100%;
-        padding: 0.5rem;
-        border: 1px solid #1a1a1a;
-        border-radius: 4px;
-        font-size: 0.9rem;
-    }
-    
-    button {
-        background-color: var(--text-color);
-        color: var(--bg-color);
-        border: none;
-        padding: 0.8rem 1.5rem;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 0.9rem;
-        transition: background-color 0.2s;
-    }
-    
-    button:hover {
-        background-color: var(--text-color);
-        color: var(--bg-color);
-    }
-    
-    button:disabled {
-        background-color: var(--text-color);
-        color: var(--bg-color);
-    }
-    
-    /* Progress bar */
-    .progress-container {
-        width: 100%;
-        margin: 1rem 0;
-    }
-    
-    .progress {
-        width: 100%;
-        height: 4px;
-        background-color: #eee;
-        border-radius: 2px;
-        overflow: hidden;
-    }
-    
-    .progress-bar {
-        height: 100%;
-        background-color: var(--text-color);
-        transition: width 0.3s ease;
-    }
-    
-    .progress-text {
-        margin-top: 0.5rem;
-        font-size: 0.9rem;
-        text-align: center;
-    }
-    
-    /* Result message and link container */
-    .result-message {
-        width: 100%;
-        margin-top: 1rem;
-    }
-    
-    .link-container {
-        display: flex;
-        gap: 0.5rem;
-        margin-top: 1rem;
-        padding: 1rem;
-        background-color: #f5f5f5;
-        border-radius: 4px;
-        word-break: break-all;
-    }
-    
-    .link-container a {
-        flex: 1;
-        color: #1a1a1a;
-        text-decoration: none;
-        font-size: 0.9rem;
-    }
-    
-    .link-container a:hover {
-        text-decoration: underline;
-    }
-    
-    /* Download page specific styles */
-    .download-info {
-        width: 100%;
-        margin-bottom: 2rem;
-    }
-    
-    .info-row {
-        display: flex;
-        color: var(--text-color);
-        margin-bottom: 1rem;
-        font-size: 0.9rem;
-    }
-    
-    .info-row .label {
-        min-width: 4rem;
-        color: var(--text-color);
-        color: var(--text-color);
-        color: #666;
-    }
-    
-    .info-row .value {
-        color: var(--text-color);
-        word-break: break-all;
-    }
-    
-    .download-button {
-        min-width: 150px;
-    }
-    
-    /* Success message */
-    #uploadSuccess p {
-        text-align: center;
-        color: #1a1a1a;
-        margin-bottom: 1rem;
-    }
-    
-    /* Auth links */
-    .auth-links {
-        position: fixed;
-        top: 2rem;
-        right: 2rem;
-        font-size: 1rem;
-    }
-    
-    .auth-links a {
-        color: #1a1a1a;
-        text-decoration: none;
-    }
-    
-    .auth-links a:hover {
-        text-decoration: underline;
-    }
-    
-    /* Auth forms */
-    .auth-form {
-        width: 100%;
-        max-width: 400px;
-        color: var(--text-color);
-        padding: 2rem;
-        border: 1px solid #eee;
-        border-radius: 4px;
-    }
-    
-    .auth-form h2 {
-        margin-bottom: 1.5rem;
-        color: var(--text-color);
-        text-align: center;
-    }
-    
-    .form-group {
-        margin-bottom: 1rem;
-    }
-    
-    .form-group label {
-        display: block;
-        color: var(--text-color);
-        margin-bottom: 0.5rem;
-    }
-    
-    .form-group input {
-        width: 100%;
-        padding: 0.5rem;
-        border: 1px solid #1a1a1a;
-        border-radius: 4px;
-        font-size: 0.9rem;
-    }
-    
-    /* Profile styles */
-    .profile-info {
-        width: 100%;
-        max-width: 600px;
-    }
-    
-    .profile-info h2 {
-        margin-bottom: 2rem;
-        text-align: center;
-    }
-    
-
-  
-/* Admin link color fix */
-.admin-link a,
-.admin-link a:visited {
-    color: var(--text-color) !important;
-    text-decoration: none;
-    transition: color 0.3s;
+/* Profile Information */
+.profile-info {
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto;  /* Centers the profile info */
 }
 
-.admin-link a:hover {
-    color: var(--text-color) !important;
-    text-decoration: underline;
+.info-row {
+    display: flex;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+    align-items: baseline;
 }
-    
-    .admin-settings {
-        width: 100%;
-        max-width: 500px;
-    }
-    
-    .settings-form {
-        margin-top: 2rem;
-        color: var(--text-color);
-    }
-    
-    .settings-info {
-        margin-top: 1rem;
-        text-align: center;
-        font-size: 0.9rem;
-        color: #666;
-    }
-    
-    /* Update this in public/style.css */
-    .logo {
-        position: fixed;
-        top: 2rem;
-        left: 2rem;
-        font-size: 1.2rem;
-        font-weight: bold;
-        color: #1a1a1a;
-        text-decoration: none;
-    }
-    
-    .logo:hover {
-        text-decoration: underline; /* Matches other link hover effects */
-    }
-    
-    /* Add these styles to your existing CSS */
-    /* Add this to your style.css */
-    
-    #resultMessage {
-        color: #ff0000;
-        margin: 1rem 0;
-        text-align: center;
-        font-weight: bold;
-    }
-    
-    #uploadSuccess {
-        margin-top: 1rem;
-    }
-    
-    /* Update this in style.css */
-    .footer {
-        position: fixed;
-        bottom: 2rem;
-        left: 0;
-        right: 0;
-        text-align: center;
-        font-size: 1rem;
-    }
-    
-    .footer a {
-        color: #1a1a1a;
-        text-decoration: none;
-        font-family: 'Courier New', monospace;
-    }
-    
-    .footer a:hover {
-        text-decoration: underline;
-    }
+
+.info-row .label {
+    min-width: 4rem;
+    color: #666;
+    margin-right: 1rem;  /* Adds spacing between label and value */
+}
+
+.info-row .value {
+    word-break: break-all;
+    color: var(--text-color);
+}
+
+/* Input Fields */
+input[type="file"],
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+select {
     width: 100%;
     padding: 0.5rem;
-    border: 1px solid #1a1a1a;
+    border: 1px solid var(--border-color);
     border-radius: 4px;
     font-size: 0.9rem;
+    background-color: var(--input-bg);
+    color: var(--text-color);
 }
 
+/* Buttons */
 button {
     background-color: var(--text-color);
     color: var(--bg-color);
@@ -450,7 +199,23 @@ button:disabled {
     color: var(--bg-color);
 }
 
-/* Progress bar */
+/* Delete Button */
+.delete-button {
+    background-color: #ff4d4d;
+    color: #fff;
+    padding: 0.4rem 0.8rem;
+    font-size: 0.9rem;
+    transition: background-color 0.2s;
+}
+
+.delete-button:hover {
+    background-color: #ff3333;
+}
+
+/* ==========================================================================
+   Progress Elements
+   ========================================================================== */
+
 .progress-container {
     width: 100%;
     margin: 1rem 0;
@@ -466,7 +231,7 @@ button:disabled {
 
 .progress-bar {
     height: 100%;
-    background-color: #1a1a1a;
+    background-color: var(--text-color);
     transition: width 0.3s ease;
 }
 
@@ -476,25 +241,24 @@ button:disabled {
     text-align: center;
 }
 
-/* Result message and link container */
-.result-message {
-    width: 100%;
-    margin-top: 1rem;
-}
+/* ==========================================================================
+   File Display Components
+   ========================================================================== */
 
+/* Link Container */
 .link-container {
     display: flex;
     gap: 0.5rem;
     margin-top: 1rem;
     padding: 1rem;
-    background-color: #f5f5f5;
+    background-color: var(--link-bg);
     border-radius: 4px;
     word-break: break-all;
 }
 
 .link-container a {
     flex: 1;
-    color: #1a1a1a;
+    color: var(--text-color);
     text-decoration: none;
     font-size: 0.9rem;
 }
@@ -503,271 +267,8 @@ button:disabled {
     text-decoration: underline;
 }
 
-/* Download page specific styles */
-.download-info {
-    width: 100%;
-    margin-bottom: 2rem;
-}
-
-.info-row {
-    display: flex;
-    margin-bottom: 1rem;
-    font-size: 0.9rem;
-}
-
-.info-row .label {
-    min-width: 4rem;
-    color: #666;
-}
-
-.info-row .value {
-    word-break: break-all;
-}
-
-.download-button {
-    min-width: 150px;
-}
-
-/* Success message */
-#uploadSuccess p {
-    text-align: center;
-    color: #1a1a1a;
-    margin-bottom: 1rem;
-}
-
-/* Auth links */
-.auth-links {
-    position: fixed;
-    top: 2rem;
-    right: 2rem;
-    font-size: 1rem;
-}
-
-.auth-links a {
-    color: #1a1a1a;
-    text-decoration: none;
-}
-
-.auth-links a:hover {
-    text-decoration: underline;
-}
-
-/* Auth forms */
-.auth-form {
-    width: 100%;
-    max-width: 400px;
-    padding: 2rem;
-    border: 1px solid #eee;
-    border-radius: 4px;
-}
-
-.auth-form h2 {
-    margin-bottom: 1.5rem;
-    text-align: center;
-}
-
-.form-group {
-    margin-bottom: 1rem;
-}
-
-.form-group label {
-    display: block;
-    margin-bottom: 0.5rem;
-}
-
-.form-group input {
-    width: 100%;
-    padding: 0.5rem;
-    border: 1px solid #1a1a1a;
-    border-radius: 4px;
-    font-size: 0.9rem;
-}
-
-/* Profile styles */
-.profile-info {
-    width: 100%;
-    max-width: 600px;
-}
-
-.profile-info h2 {
-    margin-bottom: 2rem;
-    text-align: center;
-}
-
-/* Admin styles */
-.admin-link {
-    margin-top: 2rem;
-    text-align: center;
-}
-
-.admin-settings {
-    width: 100%;
-    max-width: 500px;
-}
-
-.settings-form {
-    margin-top: 2rem;
-    color: var(--text-color);
-}
-
-.settings-info {
-    margin-top: 1rem;
-    text-align: center;
-    font-size: 0.9rem;
-    color: #666;
-}
-
-/* Update this in public/style.css */
-.logo {
-    position: fixed;
-    top: 2rem;
-    left: 2rem;
-    font-size: 1.2rem;
-    font-weight: bold;
-    color: #1a1a1a;
-    text-decoration: none;
-}
-
-.logo:hover {
-    text-decoration: underline; /* Matches other link hover effects */
-}
-
-/* Add these styles to your existing CSS */
-/* Add this to your style.css */
-
-#resultMessage {
-    color: #ff0000;
-    margin: 1rem 0;
-    text-align: center;
-    font-weight: bold;
-}
-
-#uploadSuccess {
-    margin-top: 1rem;
-}
-
-/* Update this in style.css */
-.footer {
-    position: fixed;
-    bottom: 2rem;
-    left: 0;
-    right: 0;
-    text-align: center;
-    font-size: 1rem;
-}
-
-.footer a {
-    color: #1a1a1a;
-    text-decoration: none;
-    font-family: 'Courier New', monospace;
-}
-
-.footer a:hover {
-    text-decoration: underline;
-}
-
-.logo {
-    color: var(--text-color) !important;
-    transition: color 0.3s;
-}
-
-.auth-links {
-    color: var(--text-color);
-}
-
-.auth-links a {
-    color: var(--text-color) !important;
-    transition: color 0.3s;
-}
-
-/* Footer links */
-.footer a {
-    color: var(--text-color) !important;
-    transition: color 0.3s;
-}
-
-/* Hover states */
-.logo:hover,
-.auth-links a:hover,
-.footer a:hover {
-    color: var(--text-color) !important;
-    text-decoration: underline;
-}
-
-.downloaded-files-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    max-width: 600px;
-    margin: 2rem auto;
-    padding: 1rem;
-    background-color: var(--container-bg);
-    border-radius: 8px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-}
-
-.downloaded-files-container h3 {
-    font-size: 1.5rem;
-    margin-bottom: 1rem;
-    color: var(--text-color);
-}
-
-.downloaded-files-list {
-    list-style-type: none;
-    padding: 0;
-    width: 100%;
-}
-
-.downloaded-file-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 1rem;
-    padding: 1rem;
-    background-color: var(--input-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-}
-
-.file-name {
-    font-weight: bold;
-    font-size: 1rem;
-    color: var(--text-color);
-}
-
-.download-date {
-    font-size: 0.9rem;
-    color: #666;
-    margin-top: 0.5rem;
-}
-
-.delete-form {
-    margin-top: 0.5rem;
-}
-
-.delete-button {
-    background-color: #ff4d4d;
-    color: #fff;
-    border: none;
-    padding: 0.4rem 0.8rem;
-    font-size: 0.9rem;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background-color 0.2s;
-}
-
-.delete-button:hover {
-    background-color: #ff3333;
-}
-
-.no-downloads {
-    font-size: 1rem;
-    color: #888;
-    margin-top: 1rem;
-}
-
+/* Downloaded Files Container */
+.downloaded-files-container,
 .uploaded-files-container {
     display: flex;
     flex-direction: column;
@@ -781,18 +282,14 @@ button:disabled {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
-.uploaded-files-container h3 {
-    font-size: 1.5rem;
-    margin-bottom: 1rem;
-    color: var(--text-color);
-}
-
+.downloaded-files-list,
 .uploaded-files-list {
     list-style-type: none;
     padding: 0;
     width: 100%;
 }
 
+.downloaded-file-item,
 .uploaded-file-item {
     display: flex;
     flex-direction: column;
@@ -805,30 +302,94 @@ button:disabled {
     border-radius: 4px;
 }
 
+/* ==========================================================================
+   Authentication Forms
+   ========================================================================== */
+
+.auth-form {
+    width: 100%;
+    max-width: 400px;
+    padding: 2rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    color: var(--text-color);
+}
+
+.auth-form h2 {
+    margin-bottom: 1.5rem;
+    text-align: center;
+    color: var(--text-color);
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: var(--text-color);
+}
+
+/* ==========================================================================
+   Admin Styles
+   ========================================================================== */
+
+/* Admin Settings */
+.admin-link {
+    width: 100%;
+    text-align: center;
+    display: flex;
+    justify-content: center;
+    margin: 2rem auto;
+}
+.admin-link a,
+.admin-link a:visited {
+    color: var(--text-color) !important;
+    text-decoration: none;
+    transition: color 0.3s;
+}
+
+.admin-link a:hover {
+    text-decoration: underline;
+}
+
+.settings-form {
+    margin-top: 2rem;
+    color: var(--text-color);
+}
+
+/* ==========================================================================
+   Utility Classes
+   ========================================================================== */
+
 .file-name {
     font-weight: bold;
     font-size: 1rem;
     color: var(--text-color);
 }
 
+.download-date,
 .upload-date {
     font-size: 0.9rem;
     color: #666;
     margin-top: 0.5rem;
 }
 
+.no-downloads,
 .no-uploads {
     font-size: 1rem;
     color: #888;
     margin-top: 1rem;
 }
 
-.auth-links a {
-    color: var(--text-color);
-    font-family: 'Courier New', monospace;
-    text-decoration: none;
+#resultMessage {
+    color: #ff0000;
+    margin: 1rem 0;
+    text-align: center;
+    font-weight: bold;
 }
 
-.auth-links a:hover {
-    text-decoration: underline;
+#uploadSuccess {
+    margin-top: 1rem;
 }
