@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="<%= theme %>">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Details - Admin Panel</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <a href="/" class="logo">upfile.1</a>
+    <div class="auth-links">
+        <a href="/admin-settings">admin panel</a> | <a href="/logout">logout</a>
+    </div>
+    
+    <div class="container">
+        <div class="user-details">
+            <div class="user-header">
+                <h2><%= userData.username %>'s Account</h2>
+                <% if (userData.isAdmin) { %>
+                    <span class="admin-badge">Admin</span>
+                <% } %>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <span class="stat-label">Total Uploads</span>
+                    <span class="stat-value"><%= userData.uploadedFiles.length %></span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Total Storage Used</span>
+                    <span class="stat-value"><%= formatBytes(totalStorageUsed) %></span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Account Created</span>
+                    <span class="stat-value"><%= userData.createdAt.toLocaleDateString() %></span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Email</span>
+                    <span class="stat-value"><%= userData.email %></span>
+                </div>
+            </div>
+
+            <div class="actions-panel">
+                <h3>Account Actions</h3>
+                <form action="/admin/user/<%= userData._id %>/ban" method="POST" class="ban-form">
+                    <div class="form-group">
+                        <label for="banReason">Ban Reason:</label>
+                        <input type="text" id="banReason" name="banReason" required>
+                    </div>
+                    <button type="submit" class="ban-button">Ban User & IP</button>
+                </form>
+            </div>
+
+            <div class="files-section">
+                <h3>Uploaded Files</h3>
+                <div class="files-grid">
+                    <% userData.uploadedFiles.forEach(file => { %>
+                        <div class="file-card">
+                            <div class="file-info">
+                                <span class="file-name"><%= file.fileName %></span>
+                                <span class="upload-date">Uploaded: <%= file.uploadDate.toLocaleDateString() %></span>
+                            </div>
+                            <form action="/admin/file/<%= file.fileId %>/delete" method="POST" class="file-actions">
+                                <button type="submit" class="delete-button">Delete</button>
+                            </form>
+                        </div>
+                    <% }); %>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .user-details {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .user-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            padding: 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background-color: var(--input-bg);
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .stat-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        .actions-panel {
+            margin: 2rem 0;
+            padding: 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background-color: var(--input-bg);
+        }
+
+        .ban-form {
+            margin-top: 1rem;
+        }
+
+        .ban-button {
+            background-color: #ff4d4d;
+            color: white;
+        }
+
+        .ban-button:hover {
+            background-color: #ff3333;
+        }
+
+        .files-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .file-card {
+            padding: 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background-color: var(--input-bg);
+        }
+
+        .file-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .file-name {
+            font-weight: bold;
+        }
+
+        .upload-date {
+            font-size: 0.8rem;
+            color: #666;
+        }
+    </style>
+</body>
+</html>

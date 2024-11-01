@@ -24,8 +24,52 @@
     </div>
 
     <script>
+        async function importKey(keyHex) {
+            const keyData = new Uint8Array(keyHex.match(/.{2}/g).map(byte => parseInt(byte, 16)));
+            return await window.crypto.subtle.importKey(
+                "raw",
+                keyData,
+                "AES-GCM",
+                true,
+                ["encrypt", "decrypt"]
+            );
+        }
+
+        async function decryptFile(encryptedBlob, keyHex, ivHex) {
+            const key = await importKey(keyHex);
+            const iv = new Uint8Array(ivHex.match(/.{2}/g).map(byte => parseInt(byte, 16)));
+            const arrayBuffer = await encryptedBlob.arrayBuffer();
+
+            try {
+                const decryptedContent = await window.crypto.subtle.decrypt(
+                    {
+                        name: "AES-GCM",
+                        iv: iv
+                    },
+                    key,
+                    arrayBuffer
+                );
+
+                return new Blob([decryptedContent]);
+            } catch (error) {
+                console.error('Decryption error:', error);
+                throw new Error('Failed to decrypt file');
+            }
+        }
+
         async function startDownload() {
             try {
+                // Get encryption parameters from URL fragment
+                const fragment = window.location.hash.substring(1);
+                const params = new URLSearchParams(fragment);
+                const key = params.get('key');
+                const iv = params.get('iv');
+
+                if (!key || !iv) {
+                    alert('Missing decryption parameters. Cannot download file.');
+                    return;
+                }
+
                 const response = await fetch('/check-download-status');
                 const data = await response.json();
                 
@@ -33,10 +77,33 @@
                     alert('You have exceeded your download limit. Download speed will be throttled.');
                 }
                 
-                window.location.href = window.location.pathname + '/download';
+                // Download encrypted file
+                const encryptedResponse = await fetch(window.location.pathname + '/download');
+                if (!encryptedResponse.ok) {
+                    throw new Error('Failed to download file');
+                }
+                
+                const encryptedBlob = await encryptedResponse.blob();
+
+                // Decrypt the file
+                const decryptedBlob = await decryptFile(encryptedBlob, key, iv);
+
+                // Create download link for decrypted file
+                const url = window.URL.createObjectURL(decryptedBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = '<%= fileName %>'; // Use the original filename
+                document.body.appendChild(a);
+                a.click();
+                
+                // Cleanup
+                setTimeout(() => {
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                }, 100);
             } catch (error) {
                 console.error('Error:', error);
-                alert('Error starting download. Please try again.');
+                alert('Error downloading or decrypting file. Please try again.');
             }
         }
     </script>

@@ -41,6 +41,15 @@ const userSchema = new mongoose.Schema({
     ]
 });
 
+const bannedIPSchema = new mongoose.Schema({
+    ip: { type: String, required: true },
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    reason: String,
+    bannedAt: { type: Date, default: Date.now }
+});
+
+const BannedIP = mongoose.model('BannedIP', bannedIPSchema);
+
 const User = mongoose.model('User', userSchema);
 
 const settingsSchema = new mongoose.Schema({
@@ -48,6 +57,7 @@ const settingsSchema = new mongoose.Schema({
     maxDownloadSize: { type: Number, default: 2 * 1024 * 1024 * 1024 },
     throttleSpeed: { type: Number, default: 2 * 1024 * 1024 },
     defaultTheme: { type: String, default: 'light', enum: ['light', 'dark'] },
+    encryptionEnabled: { type: Boolean, default: true }, // Add this line
     lastUpdated: { type: Date, default: Date.now }
 });
 
@@ -95,6 +105,15 @@ app.use(session({
         maxAge: 7 * 24 * 60 * 60 * 1000 // 1 week in milliseconds
     }
 }));
+
+app.use(async (req, res, next) => {
+    const ip = req.ip;
+    const banned = await BannedIP.findOne({ ip });
+    if (banned) {
+        return res.status(403).send('Access Denied: Your IP has been banned.');
+    }
+    next();
+});
 
 function createThrottledStream(readStream, speedBytes) {
     const throttle = new stream.Transform({
@@ -203,6 +222,17 @@ const upload = multer({
 
 const fileLinks = {};
 
+const requireAdmin = async (req, res, next) => {
+    if (!req.session.userId) {
+        return res.redirect('/login');
+    }
+    const user = await User.findById(req.session.userId);
+    if (!user || !user.isAdmin) {
+        return res.redirect('/profile');
+    }
+    next();
+};
+
 // Authentication middleware
 const requireAuth = (req, res, next) => {
     if (!req.session.userId) {
@@ -261,6 +291,130 @@ app.get('/check-download-status', (async (req, res, next) => {
     } catch (error) {
         console.error('Error checking download status:', error);
         res.status(500).json({ error: 'Error checking download status' });
+    }
+});
+
+app.get('/admin-settings', requireAdmin, async (req, res) => {
+    try {
+        const settings = await Settings.findOne();
+        const users = await User.find({}).sort({ createdAt: -1 });
+        const user = await User.findById(req.session.userId);
+        
+        res.render('admin-settings', { 
+            user,
+            users,
+            settings: settings || { 
+                maxUploadSize: 100 * 1024 * 1024, 
+                maxDownloadSize: 2 * 1024 * 1024 * 1024,
+                throttleSpeed: 2 * 1024 * 1024,
+                defaultTheme: 'light',
+                encryptionEnabled: true,
+                lastUpdated: new Date()
+            }
+        });
+    } catch (error) {
+        console.error('Admin settings error:', error);
+        res.redirect('/profile');
+    }
+});
+
+// User details route
+app.get('/admin/user/:userId', requireAdmin, async (req, res) => {
+    try {
+        const userData = await User.findById(req.params.userId);
+        if (!userData) {
+            return res.status(404).send('User not found');
+        }
+
+        // Calculate total storage used
+        let totalStorageUsed = 0;
+        for (const file of userData.uploadedFiles) {
+            const filePath = fileLinks[file.fileId]?.filePath;
+            if (filePath && fs.existsSync(filePath)) {
+                const stats = fs.statSync(filePath);
+                totalStorageUsed += stats.size;
+            }
+        }
+
+        // Helper function to format bytes
+        const formatBytes = (bytes) => {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        };
+
+        res.render('admin-user-details', { 
+            userData, 
+            totalStorageUsed,
+            formatBytes
+        });
+    } catch (error) {
+        console.error('Error fetching user details:', error);
+        res.redirect('/admin-settings');
+    }
+});
+
+// Ban user route
+app.post('/admin/user/:userId/ban', requireAdmin, async (req, res) => {
+    try {
+        const user = await User.findById(req.params.userId);
+        if (!user) {
+            return res.status(404).send('User not found');
+        }
+
+        // Get the user's last known IP (you'll need to track this when users log in)
+        const lastIP = user.lastKnownIP || req.ip;
+
+        // Create ban record
+        const ban = new BannedIP({
+            ip: lastIP,
+            userId: user._id,
+            reason: req.body.banReason
+        });
+        await ban.save();
+
+        // Optionally disable the user account
+        user.isBanned = true;
+        await user.save();
+
+        res.redirect('/admin-settings');
+    } catch (error) {
+        console.error('Error banning user:', error);
+        res.redirect(`/admin/user/${req.params.userId}`);
+    }
+});
+
+// Delete file route
+app.post('/admin/file/:fileId/delete', requireAdmin, async (req, res) => {
+    try {
+        const fileId = req.params.fileId;
+        const filePath = fileLinks[fileId]?.filePath;
+        
+        if (filePath) {
+            // Delete the physical file
+            fs.unlink(filePath, (err) => {
+                if (err) {
+                    console.error('Error deleting file from server:', err);
+                }
+            });
+            
+            // Remove from fileLinks
+            delete fileLinks[fileId];
+            
+            // Remove from all users' uploaded files
+            await User.updateMany(
+                { 'uploadedFiles.fileId': fileId },
+                { $pull: { uploadedFiles: { fileId: fileId } } }
+            );
+        }
+        
+        // Redirect back to the user details page
+        res.redirect(req.headers.referer || '/admin-settings');
+    } catch (error) {
+        console.error('Error deleting file:', error);
+        res.redirect('/admin-settings');
     }
 });
 
@@ -454,33 +608,6 @@ app.get('/about', (req, res) => {
     res.render('about');
 });
 
-// Admin middleware
-const requireAdmin = async (req, res, next) => {
-    if (!req.session.userId) {
-        return res.redirect('/login');
-    }
-    const user = await User.findById(req.session.userId);
-    if (!user || !user.isAdmin) {
-        return res.redirect('/profile');
-    }
-    next();
-};
-
-// Admin settings GET route
-app.get('/admin-settings', requireAdmin, async (req, res) => {
-    try {
-        const settings = await Settings.findOne();
-        const user = await User.findById(req.session.userId);
-        res.render('admin-settings', { 
-            user,
-            settings: settings || { maxUploadSize: 100 * 1024 * 1024, lastUpdated: new Date() }
-        });
-    } catch (error) {
-        console.error('Admin settings error:', error);
-        res.redirect('/profile');
-    }
-});
-
 // Admin settings POST route
 // Update the admin settings routes
 app.post('/admin-settings/general', requireAdmin, async (req, res) => {
@@ -488,11 +615,13 @@ app.post('/admin-settings/general', requireAdmin, async (req, res) => {
         const maxUploadSize = parseInt(req.body.maxUploadSize);
         const maxDownloadSize = parseInt(req.body.maxDownloadSize);
         const throttleSpeed = parseInt(req.body.throttleSpeed);
+        const encryptionEnabled = req.body.encryptionEnabled === 'true';
         
         await Settings.findOneAndUpdate({}, {
             maxUploadSize: maxUploadSize * 1024 * 1024,
             maxDownloadSize: maxDownloadSize * 1024 * 1024 * 1024,
             throttleSpeed: throttleSpeed * 1024 * 1024,
+            encryptionEnabled: encryptionEnabled,
             lastUpdated: new Date()
         }, { upsert: true });
         
