@@ -14,15 +14,7 @@ const util = require('util');
 const app = express();
 const port = 3000;
 
-// MongoDB connection
-mongoose.connect('mongodb://localhost/upfile', { 
-    useNewUrlParser: true, 
-    useUnifiedTopology: true 
-}).then(() => {
-    console.log('Connected to MongoDB');
-}).catch(err => {
-    console.error('MongoDB connection error:', err);
-});
+mongoose.connect('mongodb://localhost:27017/upfile');
 
 const userSchema = new mongoose.Schema({
     // Existing fields
@@ -623,6 +615,7 @@ app.get('/download/:id/download', (async (req, res, next) => {
             const ip = req.ip;
             const settings = await Settings.findOne();
             const maxDownloadSize = settings ? settings.maxDownloadSize : 2 * 1024 * 1024 * 1024;
+            
 
             let tracking = await DownloadTracking.findOne({ ip });
 
