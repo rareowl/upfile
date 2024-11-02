@@ -47,7 +47,7 @@
 
 1. **Clone the Repository**:
    ```bash
-   git clone https://github.com/yourusername/upfile.1.git
+   git clone https://github.com/rareowl/upfile.git
    cd upfile.1
 2. **Install Dependencies**:
     ```bash
