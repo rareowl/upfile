@@ -30,7 +30,11 @@ Download Throttling and Limits: To prevent misuse and safeguard server bandwidth
 
 IP Banning: IP addresses with suspicious activity can be restricted from accessing the platform.
 
-Quick Start Guide
+<div align="center">
+
+# Quick Start Guide
+
+</div>
 
 Prerequisites
 Node.js and npm: Ensure Node.js (v14+) and npm are installed.
