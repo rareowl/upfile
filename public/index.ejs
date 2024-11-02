@@ -23,17 +23,45 @@
 
         <!-- Progress bar container -->
         <div class="progress-container" id="progressContainer" style="display: none;">
+            <!-- Progress stages -->
+            <div class="progress-stages">
+                <div class="stage-line"></div>
+                <div class="progress-stage" id="stagePrep">
+                    <div class="stage-dot"></div>
+                    <div class="stage-label">Prep</div>
+                </div>
+                <div class="progress-stage" id="stageUpload">
+                    <div class="stage-dot"></div>
+                    <div class="stage-label">Upload</div>
+                </div>
+                <div class="progress-stage" id="stageProcess">
+                    <div class="stage-dot"></div>
+                    <div class="stage-label">Process</div>
+                </div>
+                <div class="progress-stage" id="stageComplete">
+                    <div class="stage-dot"></div>
+                    <div class="stage-label">Done</div>
+                </div>
+            </div>
+
+            <!-- Progress stats -->
+            <div class="progress-stats">
+                <div class="progress-detail" id="progressDetail"></div>
+                <div class="progress-text" id="progressText">0%</div>
+            </div>
+
+            <!-- Progress bar -->
             <div class="progress">
                 <div class="progress-bar" id="progressBar"></div>
             </div>
-            <div class="progress-text" id="progressText">0%</div>
+
+            <!-- Status message -->
+            <div class="progress-status" id="progressStatus"></div>
         </div>
 
         <!-- Result message and success container -->
         <div class="result-message">
-            <!-- Error messages will go here -->
             <div id="resultMessage"></div>
-            <!-- Success message with link -->
             <div id="uploadSuccess" style="display: none;">
                 <p>file uploaded successfully</p>
                 <div class="link-container">
@@ -47,6 +75,16 @@
     </div>
 
     <script>
+        // Utility function to format bytes
+        function formatBytes(bytes, decimals = 2) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+        }
+
         // Encryption helper functions
         async function generateKey() {
             return await window.crypto.subtle.generateKey(
@@ -66,60 +104,75 @@
                 .join('');
         }
 
-        async function importKey(keyHex) {
-            const keyData = new Uint8Array(keyHex.match(/.{2}/g).map(byte => parseInt(byte, 16)));
-            return await window.crypto.subtle.importKey(
-                "raw",
-                keyData,
-                "AES-GCM",
-                true,
-                ["encrypt", "decrypt"]
-            );
+        function updateStage(stageName) {
+            const stages = ['Prep', 'Upload', 'Process', 'Complete'];
+            stages.forEach(stage => {
+                const element = document.getElementById(`stage${stage}`);
+                element.classList.remove('active', 'completed');
+            });
+
+            const currentIndex = stages.indexOf(stageName);
+            for(let i = 0; i <= currentIndex; i++) {
+                const element = document.getElementById(`stage${stages[i]}`);
+                if (i < currentIndex) {
+                    element.classList.add('completed');
+                } else if (i === currentIndex) {
+                    element.classList.add('active');
+                }
+            }
         }
 
         async function encryptFile(file) {
-            const key = await generateKey();
-            const iv = window.crypto.getRandomValues(new Uint8Array(12));
-            const arrayBuffer = await file.arrayBuffer();
+            try {
+                const key = await generateKey();
+                const iv = window.crypto.getRandomValues(new Uint8Array(12));
+                
+                const fileBuffer = await file.arrayBuffer();
+                progressDetail.textContent = `Encrypting ${formatBytes(fileBuffer.byteLength)}...`;
+                
+                const encryptedContent = await window.crypto.subtle.encrypt(
+                    {
+                        name: "AES-GCM",
+                        iv: iv
+                    },
+                    key,
+                    fileBuffer
+                );
+                
+                const encryptedFile = new File(
+                    [encryptedContent],
+                    file.name,
+                    { type: file.type }
+                );
 
-            const encryptedContent = await window.crypto.subtle.encrypt(
-                {
-                    name: "AES-GCM",
-                    iv: iv
-                },
-                key,
-                arrayBuffer
-            );
+                const keyHex = await exportKey(key);
+                const ivHex = Array.from(iv)
+                    .map(b => b.toString(16).padStart(2, '0'))
+                    .join('');
 
-            const encryptedFile = new File(
-                [encryptedContent],
-                file.name,
-                { type: file.type }
-            );
-
-            const keyHex = await exportKey(key);
-            const ivHex = Array.from(iv)
-                .map(b => b.toString(16).padStart(2, '0'))
-                .join('');
-
-            return {
-                file: encryptedFile,
-                key: keyHex,
-                iv: ivHex
-            };
+                return {
+                    file: encryptedFile,
+                    key: keyHex,
+                    iv: ivHex
+                };
+            } catch (error) {
+                console.error('Encryption error:', error);
+                throw new Error('Failed to encrypt file: ' + error.message);
+            }
         }
 
-        // Keep your existing variable declarations
+        // DOM element references
         const fileInput = document.getElementById('fileInput');
         const uploadButton = document.getElementById('uploadButton');
         const progressContainer = document.getElementById('progressContainer');
         const progressBar = document.getElementById('progressBar');
         const progressText = document.getElementById('progressText');
+        const progressDetail = document.getElementById('progressDetail');
+        const progressStatus = document.getElementById('progressStatus');
         const resultMessage = document.getElementById('resultMessage');
         const uploadSuccess = document.getElementById('uploadSuccess');
         const downloadLink = document.getElementById('downloadLink');
 
-        // Add this new function
         async function getMaxFileSize() {
             try {
                 const response = await fetch('/get-max-file-size');
@@ -131,94 +184,146 @@
             }
         }
 
-        // Updated uploadFile function with encryption
-        async function uploadFile() {
-            const file = fileInput.files[0];
-            if (!file) {
-                alert('Please select a file first!');
-                return;
-            }
+        async function getEncryptionStatus() {
+    try {
+        const response = await fetch('/get-encryption-status');
+        const data = await response.json();
+        return data.encryptionEnabled;
+    } catch (error) {
+        console.error('Error getting encryption status:', error);
+        return true; // Default to encryption enabled if we can't check
+    }
+}
 
-            // Check file size
-            const maxSize = await getMaxFileSize();
-            if (maxSize && file.size > maxSize) {
-                const maxSizeMB = (maxSize / (1024 * 1024)).toFixed(2);
-                resultMessage.textContent = `File size exceeds the limit of ${maxSizeMB} MB`;
-                return;
-            }
+async function uploadFile() {
+    const file = fileInput.files[0];
+    if (!file) {
+        alert('Please select a file first!');
+        return;
+    }
 
-            progressContainer.style.display = 'block';
-            uploadButton.disabled = true;
-            uploadSuccess.style.display = 'none';
-            resultMessage.textContent = '';
+    // Check file size
+    const maxSize = await getMaxFileSize();
+    if (maxSize && file.size > maxSize) {
+        const maxSizeMB = (maxSize / (1024 * 1024)).toFixed(2);
+        resultMessage.textContent = `File size exceeds the limit of ${maxSizeMB} MB`;
+        return;
+    }
 
-            try {
-                // Encrypt the file before upload
-                const { file: encryptedFile, key, iv } = await encryptFile(file);
-                const formData = new FormData();
-                formData.append('file', encryptedFile);
-                formData.append('originalName', file.name);
+    try {
+        progressContainer.style.display = 'block';
+        uploadButton.disabled = true;
+        uploadSuccess.style.display = 'none';
+        resultMessage.textContent = '';
 
-                const xhr = new XMLHttpRequest();
-                xhr.open('POST', '/upload', true);
+        // Preparation stage
+        updateStage('Prep');
+        progressBar.style.width = '0%';
+        progressText.textContent = '0%';
+        progressDetail.textContent = `Preparing to process ${formatBytes(file.size)}...`;
+        progressStatus.textContent = 'Getting ready...';
 
-                xhr.upload.onprogress = (event) => {
-                    if (event.lengthComputable) {
-                        const percent = (event.loaded / event.total) * 100;
-                        progressBar.style.width = percent + '%';
-                        progressText.textContent = Math.round(percent) + '%';
-                    }
-                };
+        // Check if encryption is enabled
+        const encryptionEnabled = await getEncryptionStatus();
+        let fileToUpload = file;
+        let encryptionKey = null;
+        let encryptionIv = null;
 
-                xhr.onload = () => {
-                    try {
-                        const response = JSON.parse(xhr.responseText);
-                        
-                        if (xhr.status === 200 && response.success) {
-                            // Hide progress bar
-                            progressContainer.style.display = 'none';
-                            
-                            // Add encryption key and IV to download URL
-                            const fullUrl = `${window.location.origin}${response.downloadLink}#key=${key}&iv=${iv}`;
-                            downloadLink.href = fullUrl;
-                            downloadLink.textContent = fullUrl;
-                            uploadSuccess.style.display = 'block';
-                            resultMessage.textContent = '';
-                        } else {
-                            // Show error message
-                            progressContainer.style.display = 'none';
-                            uploadSuccess.style.display = 'none';
-                            resultMessage.textContent = response.message || 'Upload failed. Please try again.';
-                        }
-                    } catch (e) {
-                        // Handle parsing error
-                        progressContainer.style.display = 'none';
-                        uploadSuccess.style.display = 'none';
-                        resultMessage.textContent = 'Upload failed. Please try again.';
-                    }
-                    
-                    // Re-enable upload button
-                    uploadButton.disabled = false;
-                };
-
-                xhr.onerror = () => {
-                    progressContainer.style.display = 'none';
-                    uploadSuccess.style.display = 'none';
-                    resultMessage.textContent = 'Upload failed. Please check your connection.';
-                    uploadButton.disabled = false;
-                };
-
-                xhr.send(formData);
-            } catch (error) {
-                console.error('Encryption error:', error);
-                progressContainer.style.display = 'none';
-                uploadSuccess.style.display = 'none';
-                resultMessage.textContent = 'Error encrypting file. Please try again.';
-                uploadButton.disabled = false;
-            }
+        if (encryptionEnabled) {
+            progressDetail.textContent = 'Encrypting file...';
+            const encryptedData = await encryptFile(file);
+            fileToUpload = encryptedData.file;
+            encryptionKey = encryptedData.key;
+            encryptionIv = encryptedData.iv;
         }
+        
+        // Upload stage
+        updateStage('Upload');
+        progressBar.style.width = '25%';
+        progressText.textContent = '25%';
+        progressDetail.textContent = 'Starting upload...';
+        progressStatus.textContent = 'Uploading to server...';
 
-        // Keep your existing copyLink function
+        const formData = new FormData();
+        formData.append('file', fileToUpload);
+        formData.append('originalName', file.name);
+
+        // Upload the file
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/upload', true);
+
+        xhr.upload.onprogress = (event) => {
+            if (event.lengthComputable) {
+                const uploadProgress = 25 + ((event.loaded / event.total) * 50);
+                progressBar.style.width = uploadProgress + '%';
+                progressText.textContent = Math.round(uploadProgress) + '%';
+                progressDetail.textContent = `Uploading: ${formatBytes(event.loaded)} / ${formatBytes(event.total)}`;
+            }
+        };
+
+        xhr.onload = () => {
+            try {
+                const response = JSON.parse(xhr.responseText);
+                
+                if (xhr.status === 200 && response.success) {
+                    // Process stage
+                    updateStage('Process');
+                    progressBar.style.width = '90%';
+                    progressText.textContent = '90%';
+                    progressDetail.textContent = 'Finalizing...';
+                    progressStatus.textContent = 'Almost done...';
+
+                    // Complete stage
+                    setTimeout(() => {
+                        updateStage('Complete');
+                        progressBar.style.width = '100%';
+                        progressText.textContent = '100%';
+                        progressDetail.textContent = 'Upload complete!';
+                        progressStatus.textContent = 'Ready to share';
+
+                        // Add encryption parameters to URL only if encryption was used
+                        let fullUrl = `${window.location.origin}${response.downloadLink}`;
+                        if (encryptionEnabled && encryptionKey && encryptionIv) {
+                            fullUrl += `#key=${encryptionKey}&iv=${encryptionIv}`;
+                        }
+                        downloadLink.href = fullUrl;
+                        downloadLink.textContent = fullUrl;
+                        uploadSuccess.style.display = 'block';
+                        resultMessage.textContent = '';
+
+                        setTimeout(() => {
+                            progressContainer.style.display = 'none';
+                        }, 1000);
+                    }, 500);
+                } else {
+                    throw new Error(response.message || 'Upload failed');
+                }
+            } catch (e) {
+                resultMessage.textContent = e.message || 'Upload failed. Please try again.';
+                uploadSuccess.style.display = 'none';
+                progressContainer.style.display = 'none';
+            }
+            
+            uploadButton.disabled = false;
+        };
+
+        xhr.onerror = () => {
+            progressContainer.style.display = 'none';
+            uploadSuccess.style.display = 'none';
+            resultMessage.textContent = 'Upload failed. Please check your connection.';
+            uploadButton.disabled = false;
+        };
+
+        xhr.send(formData);
+    } catch (error) {
+        console.error('Upload error:', error);
+        progressContainer.style.display = 'none';
+        uploadSuccess.style.display = 'none';
+        resultMessage.textContent = error.message || 'Error processing file. Please try again.';
+        uploadButton.disabled = false;
+    }
+}
+
         function copyLink() {
             const linkText = downloadLink.href;
             navigator.clipboard.writeText(linkText).then(() => {
@@ -236,11 +341,13 @@
             progressContainer.style.display = 'none';
             progressBar.style.width = '0%';
             progressText.textContent = '0%';
+            progressDetail.textContent = '';
             uploadSuccess.style.display = 'none';
-            resultMessage.textContent = ''; // Clear any error messages
+            resultMessage.textContent = '';
             uploadButton.disabled = false;
         });
     </script>
+
     <div class="footer">
         <a href="/about">about us</a>
     </div>

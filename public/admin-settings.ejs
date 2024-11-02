@@ -44,14 +44,18 @@
                                required>
                     </div>
 
-                    <div class="form-group">
-                        <label for="throttleSpeed">throttled download speed (MB/s):</label>
-                        <input type="number" 
-                               id="throttleSpeed" 
-                               name="throttleSpeed" 
-                               value="<%= Math.floor(settings.throttleSpeed / (1024 * 1024)) %>" 
-                               required>
-                    </div>
+<div class="form-group">
+    <label for="throttleSpeed">throttled download speed (MB/s):</label>
+    <input type="number" 
+           id="throttleSpeed" 
+           name="throttleSpeed" 
+           step="0.1"
+           min="0.1"
+           value="<%= (settings.throttleSpeed / (1024 * 1024)).toFixed(1) %>" 
+           required>
+    <small class="input-help">Set the speed limit for throttled downloads (in MB/s)</small>
+</div>
+
 
                     <div class="form-group">
                         <label for="encryptionEnabled">file encryption:</label>

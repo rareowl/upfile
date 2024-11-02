@@ -14,7 +14,36 @@ const util = require('util');
 const app = express();
 const port = 3000;
 
-mongoose.connect('mongodb://localhost:27017/upfile');
+app.use(bodyParser.json({limit: '10gb'}));
+app.use(bodyParser.urlencoded({limit: '10gb', extended: true}));
+
+
+mongoose.connect('mongodb://localhost:27017/upfile', {
+    maxPoolSize: 100,
+    minPoolSize: 10,
+    maxIdleTimeMS: 30000,
+    connectTimeoutMS: 30000,
+    socketTimeoutMS: 360000, // Increased timeout for large file operations
+    serverSelectionTimeoutMS: 5000,
+    heartbeatFrequencyMS: 10000
+}).then(() => {
+    console.log('Connected to MongoDB successfully');
+}).catch(err => {
+    console.error('MongoDB connection error:', err);
+});
+
+// Add error handlers for MongoDB connection
+mongoose.connection.on('error', err => {
+    console.error('MongoDB connection error:', err);
+});
+
+mongoose.connection.on('disconnected', () => {
+    console.log('MongoDB disconnected');
+});
+
+mongoose.connection.on('reconnected', () => {
+    console.log('MongoDB reconnected');
+});
 
 const userSchema = new mongoose.Schema({
     // Existing fields
@@ -115,29 +144,45 @@ app.use(async (req, res, next) => {
     next();
 });
 
-function createThrottledStream(readStream, speedBytes) {
+// Add this near your other middleware functions
+function createThrottledStream(readStream, speedBytesPerSecond) {
+    let bytesTransferred = 0;
+    let lastTime = Date.now();
+    
     const throttle = new stream.Transform({
         transform(chunk, encoding, callback) {
-            this.push(chunk);
-            callback();
+            const now = Date.now();
+            const elapsedMs = now - lastTime;
+            bytesTransferred += chunk.length;
+
+            // Calculate how many bytes we should have sent by now
+            const expectedBytes = (elapsedMs / 1000) * speedBytesPerSecond;
+
+            if (bytesTransferred > expectedBytes) {
+                // If we've sent too many bytes, calculate delay needed
+                const excessBytes = bytesTransferred - expectedBytes;
+                const requiredDelay = (excessBytes / speedBytesPerSecond) * 1000;
+
+                setTimeout(() => {
+                    this.push(chunk);
+                    callback();
+                }, requiredDelay);
+            } else {
+                // If we're under the limit, send immediately
+                this.push(chunk);
+                callback();
+            }
         }
     });
 
-    let totalBytes = 0;
-    let startTime = Date.now();
+    // Handle errors
+    readStream.on('error', (err) => {
+        console.error('Read stream error:', err);
+        throttle.destroy(err);
+    });
 
-    throttle.on('data', chunk => {
-        totalBytes += chunk.length;
-        const elapsedSeconds = (Date.now() - startTime) / 1000;
-        const currentSpeed = totalBytes / elapsedSeconds;
-
-        if (currentSpeed > speedBytes) {
-            const requiredDelay = (totalBytes / speedBytes) - elapsedSeconds;
-            if (requiredDelay > 0) {
-                throttle.pause();
-                setTimeout(() => throttle.resume(), requiredDelay * 1000);
-            }
-        }
+    throttle.on('error', (err) => {
+        console.error('Throttle stream error:', err);
     });
 
     readStream.pipe(throttle);
@@ -206,6 +251,9 @@ const storage = multer.diskStorage({
 
 const upload = multer({
     storage: storage,
+    limits: {
+        fileSize: 1024 * 1024 * 1024 * 2 // 2GB limit
+    },
     fileFilter: async (req, file, cb) => {
         try {
             const maxSize = await getFileSize();
@@ -315,6 +363,37 @@ app.get('/admin-settings', requireAdmin, async (req, res) => {
     } catch (error) {
         console.error('Admin settings error:', error);
         res.redirect('/profile');
+    }
+});
+
+app.post('/admin-settings/general', requireAdmin, async (req, res) => {
+    try {
+        const maxUploadSize = parseInt(req.body.maxUploadSize);
+        const maxDownloadSize = parseInt(req.body.maxDownloadSize);
+        const throttleSpeed = parseFloat(req.body.throttleSpeed);
+        const encryptionEnabled = req.body.encryptionEnabled === 'true';
+        
+        // Convert all values to bytes
+        const settings = {
+            maxUploadSize: maxUploadSize * 1024 * 1024, // MB to bytes
+            maxDownloadSize: maxDownloadSize * 1024 * 1024 * 1024, // GB to bytes
+            throttleSpeed: Math.floor(throttleSpeed * 1024 * 1024), // MB/s to bytes/s
+            encryptionEnabled: encryptionEnabled,
+            lastUpdated: new Date()
+        };
+
+        await Settings.findOneAndUpdate({}, settings, { upsert: true });
+        
+        // Log the new settings
+        console.log('Updated throttle settings:');
+        console.log('- Max upload size:', settings.maxUploadSize, 'bytes');
+        console.log('- Max download size:', settings.maxDownloadSize, 'bytes');
+        console.log('- Throttle speed:', settings.throttleSpeed, 'bytes/second');
+        
+        res.redirect('/admin-settings');
+    } catch (error) {
+        console.error('Settings update error:', error);
+        res.redirect('/admin-settings');
     }
 });
 
@@ -648,6 +727,21 @@ app.post('/admin-settings/display', requireAdmin, async (req, res) => {
     }
 });
 
+app.get('/get-encryption-status', async (req, res) => {
+    try {
+        const settings = await Settings.findOne();
+        res.json({
+            encryptionEnabled: settings ? settings.encryptionEnabled : true
+        });
+    } catch (error) {
+        console.error('Error getting encryption status:', error);
+        res.status(500).json({ 
+            error: 'Server error',
+            encryptionEnabled: true // Default to encryption enabled if error
+        });
+    }
+});
+
 // File Size Check
 app.get('/get-max-file-size', async (req, res) => {
     try {
@@ -666,10 +760,10 @@ app.get('/get-max-file-size', async (req, res) => {
 // File upload routes
 app.post('/upload', upload.single('file'), async (req, res) => {
     try {
+        const settings = await Settings.findOne();
         const maxSize = await getFileSize();
         const fileSize = parseInt(req.headers['content-length']);
 
-        // Check if file size exceeds the limit
         if (fileSize > maxSize) {
             const maxSizeMB = (maxSize / (1024 * 1024)).toFixed(2);
             return res.status(400).json({
@@ -685,20 +779,20 @@ app.post('/upload', upload.single('file'), async (req, res) => {
             });
         }
 
-        // Only save upload info if user is authenticated
         if (req.session.userId) {
             const user = await User.findById(req.session.userId);
             const downloadId = crypto.randomBytes(8).toString('hex');
 
-            // Store file information for future downloads
+            // Store whether the file is encrypted based on settings
             fileLinks[downloadId] = {
                 filePath: req.file.path,
-                fileName: req.file.originalname
+                fileName: req.body.originalName || req.file.originalname, // Use original name if provided
+                encrypted: settings.encryptionEnabled
             };
             
             user.uploadedFiles.push({
                 fileId: downloadId,
-                fileName: req.file.originalname
+                fileName: req.body.originalName || req.file.originalname
             });
             await user.save();
             
@@ -706,10 +800,14 @@ app.post('/upload', upload.single('file'), async (req, res) => {
             return res.json({
                 success: true,
                 message: 'File uploaded successfully!',
-                downloadLink
+                downloadLink,
+                encrypted: settings.encryptionEnabled
             });
         } else {
-            return res.status(403).json({ success: false, message: 'User not authenticated.' });
+            return res.status(403).json({ 
+                success: false, 
+                message: 'User not authenticated.' 
+            });
         }
     } catch (error) {
         console.error('Upload error:', error);
@@ -735,45 +833,13 @@ app.get('/download/:id', (req, res) => {
 
     res.render('download', {
         fileName: fileInfo.fileName,
-        fileSize: formattedSize
+        fileSize: formattedSize,
+        encrypted: fileInfo.encrypted // Pass encryption status to template
     });
 });
 
-app.get('/download/:id/download', (async (req, res, next) => {
-        try {
-            const ip = req.ip;
-            const settings = await Settings.findOne();
-            const maxDownloadSize = settings ? settings.maxDownloadSize : 2 * 1024 * 1024 * 1024;
-            
-
-            let tracking = await DownloadTracking.findOne({ ip });
-
-            if (!tracking || (Date.now() - tracking.lastReset > 24 * 60 * 60 * 1000)) {
-                tracking = new DownloadTracking({ ip, bytesDownloaded: 0, lastReset: new Date() });
-            }
-
-            // Save download to user's downloaded files if logged in
-            if (req.session.userId && req.params.id) {
-                const user = await User.findById(req.session.userId);
-                const fileInfo = fileLinks[req.params.id];
-
-                // Check if file exists in fileLinks and then push download record
-                if (fileInfo) {
-                    user.downloadedFiles.push({
-                        fileId: req.params.id,
-                        fileName: fileInfo.fileName
-                    });
-                    await user.save();
-                }
-            }
-
-            req.downloadTracking = tracking;
-            next();
-        } catch (error) {
-            console.error('Download tracking error:', error);
-            next(error);
-        }
-    }), async (req, res) => {
+// Update your download route
+app.get('/download/:id/download', async (req, res, next) => {
     const downloadId = req.params.id;
     const fileInfo = fileLinks[downloadId];
 
@@ -783,31 +849,68 @@ app.get('/download/:id/download', (async (req, res, next) => {
 
     try {
         const stats = fs.statSync(fileInfo.filePath);
-        const tracking = req.downloadTracking;
         const settings = await Settings.findOne();
-        
-        // Update bytes downloaded
-        tracking.bytesDownloaded += stats.size;
-        await tracking.save();
+        const tracking = await DownloadTracking.findOne({ ip: req.ip });
 
-        // Set up the file stream
+        // Update bytes downloaded
+        if (tracking) {
+            tracking.bytesDownloaded += stats.size;
+            await tracking.save();
+        }
+
+        // Set response headers
+        res.setHeader('Content-Type', 'application/octet-stream');
+        res.setHeader('Content-Disposition', `attachment; filename="${fileInfo.fileName}"`);
+        res.setHeader('Content-Length', stats.size);
+        res.setHeader('X-File-Encrypted', fileInfo.encrypted ? 'true' : 'false');
+
+        // Create file stream
         const fileStream = fs.createReadStream(fileInfo.filePath);
 
-        // Check if throttling is needed
-        if (tracking.bytesDownloaded > settings.maxDownloadSize) {
-            // Apply throttling
+        // Handle stream errors
+        fileStream.on('error', (error) => {
+            console.error('File stream error:', error);
+            if (!res.headersSent) {
+                res.status(500).send('Error streaming file');
+            }
+        });
+
+        // Apply throttling if needed
+        if (tracking && tracking.bytesDownloaded > settings.maxDownloadSize) {
+            console.log('Throttling download to:', settings.throttleSpeed, 'bytes per second');
             const throttledStream = createThrottledStream(fileStream, settings.throttleSpeed);
-            res.setHeader('Content-Type', 'application/octet-stream');
-            res.setHeader('Content-Disposition', `attachment; filename="${fileInfo.fileName}"`);
             throttledStream.pipe(res);
         } else {
-            // Normal download
-            res.download(fileInfo.filePath, fileInfo.fileName);
+            fileStream.pipe(res);
         }
+
+        // Handle client disconnect
+        req.on('close', () => {
+            fileStream.destroy();
+        });
 
     } catch (error) {
         console.error('Download error:', error);
-        res.status(500).send('Error processing download.');
+        if (!res.headersSent) {
+            res.status(500).send('Error processing download.');
+        }
+    }
+});
+
+app.get('/check-throttle-status', async (req, res) => {
+    try {
+        const settings = await Settings.findOne();
+        const tracking = await DownloadTracking.findOne({ ip: req.ip });
+        
+        res.json({
+            currentDownloaded: tracking ? tracking.bytesDownloaded : 0,
+            maxDownloadSize: settings.maxDownloadSize,
+            throttleSpeed: settings.throttleSpeed,
+            isThrottled: tracking ? tracking.bytesDownloaded > settings.maxDownloadSize : false,
+            throttleSpeedMBps: (settings.throttleSpeed / (1024 * 1024)).toFixed(2)
+        });
+    } catch (error) {
+        res.status(500).json({ error: 'Error checking throttle status' });
     }
 });
 
