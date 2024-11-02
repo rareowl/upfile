@@ -1,6 +1,6 @@
 <div align="center">
   
-  # Upfile.1 - Secure, Self-Hosted File Sharing
+  # Upfile - Secure, Self-Hosted File Sharing
   
   ### End-to-End Encryption for Privacy and Control
 
@@ -8,9 +8,9 @@
 
 ---
 
-## 🔐 About Upfile.1
+## 🔐 About Upfile
 
-**Upfile.1** is a privacy-focused, self-hosted file-sharing service that prioritizes security and ease of use. Files are encrypted end-to-end, allowing users full control over their data. Only users with the decryption key can access the files, ensuring robust protection even if the server is compromised.
+**Upfile** is a privacy-focused, self-hosted file-sharing service that prioritizes security and ease of use. Files are encrypted end-to-end, allowing users full control over their data. Only users with the decryption key can access the files, ensuring robust protection even if the server is compromised.
 
 ## 🌟 Key Features
 
@@ -48,7 +48,7 @@
 1. **Clone the Repository**:
    ```bash
    git clone https://github.com/rareowl/upfile.git
-   cd upfile.1
+   cd upfile
 2. **Install Dependencies**:
     ```bash
     npm install
