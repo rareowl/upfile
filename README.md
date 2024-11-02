@@ -3,8 +3,6 @@
   # Upfile.1 - Secure, Self-Hosted File Sharing
   
   ### End-to-End Encryption for Privacy and Control
-  
-  ![logo](path/to/logo.png) <!-- Replace with the actual path to your logo -->
 
 </div>
 
@@ -64,23 +62,33 @@
 5. **Access the App: Open http://localhost:3000 in your browser.**
 
 <div align="center">
-🛡️ Security Details
+
+# 🛡️ Security Details
+
 </div>
-End-to-End Encryption: Files are encrypted on the client-side using AES-GCM, and only users with the decryption key can access the files.
-Secure Storage: The server only holds encrypted files. The encryption key never reaches the server, keeping user data private.
-Authentication: Passwords are hashed and salted with bcrypt.
-Download Throttling: Prevents excessive bandwidth usage.
-IP Banning: Admins can ban suspicious IP addresses.
-<div align="center">
-✨ Customization
-</div>
-Theming: Customize light and dark modes in public/style.css.
-Settings: Manage file size limits, encryption options, and user controls in the admin settings page.
+
+- **End-to-End Encryption**: Files are encrypted on the client-side using AES-GCM, and only users with the decryption key can access the files.
+- **Secure Storage**: The server only holds encrypted files. The encryption key never reaches the server, keeping user data private.
+- **Authentication**: Passwords are hashed and salted with bcrypt for secure storage.
+- **Download Throttling**: Prevents excessive bandwidth usage.
+- **IP Banning**: Admins can ban suspicious IP addresses.
+
+---
 
 <div align="center">
+
+# ✨ Customization
+
+</div>
+
+- **Theming**: Customize light and dark modes in `public/style.css`.
+- **Settings**: Manage file size limits, encryption options, and user controls in the admin settings page.
+
+---
+
+<div align="center">
+
 Made with ❤️ for Privacy and Security
 
-</div> ```
-This README.md should display properly on GitHub. Make sure to replace path/to/logo.png with the actual path to your logo image. Let me know if you need further adjustments!
-
+</div>
 
