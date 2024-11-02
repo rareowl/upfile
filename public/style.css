@@ -508,5 +508,44 @@ button:disabled {
     color: #666;
 }
 
+.checkbox-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.checkbox-group input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+}
+
+.checkbox-group label {
+    margin: 0;
+}
+
+.file-link {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    width: 100%;
+}
+
+.file-url {
+    flex: 1;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.8rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: var(--input-bg);
+    color: var(--text-color);
+    cursor: text;
+}
+
+.copy-button {
+    padding: 0.25rem 1rem;
+    font-size: 0.8rem;
+    white-space: nowrap;
+}
+
 
 

@@ -245,8 +245,12 @@ async function uploadFile() {
         progressStatus.textContent = 'Uploading to server...';
 
         const formData = new FormData();
-        formData.append('file', fileToUpload);
-        formData.append('originalName', file.name);
+formData.append('file', fileToUpload);
+formData.append('originalName', file.name);
+if (encryptionEnabled && encryptionKey && encryptionIv) {
+    formData.append('key', encryptionKey);
+    formData.append('iv', encryptionIv);
+}
 
         // Upload the file
         const xhr = new XMLHttpRequest();

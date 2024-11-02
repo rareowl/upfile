@@ -36,8 +36,24 @@
             <ul class="uploaded-files-list">
                 <% user.uploadedFiles.forEach(file => { %>
                     <li class="uploaded-file-item">
-                        <span class="file-name"><%= file.fileName %></span>
-                        <span class="upload-date">Uploaded on <%= file.uploadDate.toLocaleDateString() %></span>
+                        <div class="file-info">
+                            <span class="file-name"><%= file.fileName %></span>
+                            <span class="upload-date">Uploaded on <%= file.uploadDate.toLocaleDateString() %></span>
+                            <div class="file-link">
+                                <% if (file.encryptionKey && file.encryptionIv) { %>
+                                    <input type="text" readonly 
+                                           value="<%= baseUrl %>/download/<%= file.fileId %>#key=<%= file.encryptionKey %>&iv=<%= file.encryptionIv %>" 
+                                           id="link-<%= file.fileId %>" 
+                                           class="file-url">
+                                <% } else { %>
+                                    <input type="text" readonly 
+                                           value="<%= baseUrl %>/download/<%= file.fileId %>" 
+                                           id="link-<%= file.fileId %>" 
+                                           class="file-url">
+                                <% } %>
+                                <button onclick="copyFileLink('<%= file.fileId %>')" class="copy-button">copy</button>
+                            </div>
+                        </div>
                         <form action="/delete-upload/<%= file.fileId %>" method="POST" class="delete-form">
                             <button type="submit" class="delete-button">Remove</button>
                         </form>
@@ -81,4 +97,17 @@
         </div>
     <% } %>
 </body>
+<script>
+    function copyFileLink(fileId) {
+        const input = document.getElementById(`link-${fileId}`);
+        input.select();
+        document.execCommand('copy');
+        
+        const button = input.nextElementSibling;
+        button.textContent = 'copied!';
+        setTimeout(() => {
+            button.textContent = 'copy';
+        }, 2000);
+    }
+    </script>
 </html>

@@ -9,13 +9,22 @@ const session = require('express-session');
 const bodyParser = require('body-parser');
 const stream = require('stream');
 const util = require('util');
-
+const MongoDBStore = require('connect-mongodb-session')(session);
 
 const app = express();
 const port = 3000;
 
 app.use(bodyParser.json({limit: '10gb'}));
 app.use(bodyParser.urlencoded({limit: '10gb', extended: true}));
+
+const store = new MongoDBStore({
+    uri: 'mongodb://localhost:27017/upfile',
+    collection: 'sessions'
+});
+
+store.on('error', function(error) {
+    console.error('Session store error:', error);
+});
 
 
 mongoose.connect('mongodb://localhost:27017/upfile', {
@@ -46,14 +55,11 @@ mongoose.connection.on('reconnected', () => {
 });
 
 const userSchema = new mongoose.Schema({
-    // Existing fields
     username: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     email: { type: String, required: true, unique: true },
     isAdmin: { type: Boolean, default: false },
     createdAt: { type: Date, default: Date.now },
-
-    // Fields for tracking files
     downloadedFiles: [
         {
             fileId: String,
@@ -65,7 +71,9 @@ const userSchema = new mongoose.Schema({
         {
             fileId: String,
             fileName: String,
-            uploadDate: { type: Date, default: Date.now }
+            uploadDate: { type: Date, default: Date.now },
+            encryptionKey: String,  // Add this
+            encryptionIv: String    // Add this
         }
     ]
 });
@@ -125,13 +133,15 @@ app.set('views', path.join(__dirname, 'public'));
 app.use(express.static('public'));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
+
 app.use(session({
     secret: 'your-secret-key',
     resave: false,
     saveUninitialized: false,
+    store: store,
     cookie: {
         secure: false, // Set to true if using HTTPS
-        maxAge: 7 * 24 * 60 * 60 * 1000 // 1 week in milliseconds
+        maxAge: 24 * 60 * 60 * 1000 // 1 day by default
     }
 }));
 
@@ -606,6 +616,12 @@ app.post('/login', async (req, res) => {
         const user = await User.findOne({ username: req.body.username });
         if (user && await bcrypt.compare(req.body.password, user.password)) {
             req.session.userId = user._id;
+            
+            // Set session expiry based on remember me option
+            if (req.body.rememberMe) {
+                req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000; // 30 days
+            }
+            
             res.redirect('/profile');
         } else {
             res.redirect('/login');
@@ -619,7 +635,9 @@ app.post('/login', async (req, res) => {
 app.get('/profile', requireAuth, async (req, res) => {
     try {
         const user = await User.findById(req.session.userId);
-        res.render('profile', { user });
+        // Add base URL for file links
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        res.render('profile', { user, baseUrl });
     } catch (error) {
         console.error('Profile error:', error);
         res.redirect('/login');
@@ -760,7 +778,7 @@ app.get('/get-max-file-size', async (req, res) => {
 // File upload routes
 app.post('/upload', upload.single('file'), async (req, res) => {
     try {
-        const settings = await Settings.findOne();
+        const settings = await Settings.findOne(); // Add this line at the beginning
         const maxSize = await getFileSize();
         const fileSize = parseInt(req.headers['content-length']);
 
@@ -783,16 +801,21 @@ app.post('/upload', upload.single('file'), async (req, res) => {
             const user = await User.findById(req.session.userId);
             const downloadId = crypto.randomBytes(8).toString('hex');
 
-            // Store whether the file is encrypted based on settings
+            // Get encryption parameters from request body
+            const encryptionKey = req.body.key;
+            const encryptionIv = req.body.iv;
+
             fileLinks[downloadId] = {
                 filePath: req.file.path,
-                fileName: req.body.originalName || req.file.originalname, // Use original name if provided
+                fileName: req.body.originalName || req.file.originalname,
                 encrypted: settings.encryptionEnabled
             };
             
             user.uploadedFiles.push({
                 fileId: downloadId,
-                fileName: req.body.originalName || req.file.originalname
+                fileName: req.body.originalName || req.file.originalname,
+                encryptionKey: encryptionKey,
+                encryptionIv: encryptionIv
             });
             await user.save();
             
