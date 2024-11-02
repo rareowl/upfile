@@ -100,6 +100,16 @@ const settingsSchema = new mongoose.Schema({
 
 const Settings = mongoose.model('Settings', settingsSchema);
 
+const fileSchema = new mongoose.Schema({
+    fileId: { type: String, required: true, unique: true },
+    filePath: { type: String, required: true },
+    fileName: { type: String, required: true },
+    encrypted: { type: Boolean, default: false },
+    uploadDate: { type: Date, default: Date.now }
+});
+
+const File = mongoose.model('File', fileSchema);
+
 // Initialize default settings
 async function initializeSettings() {
     try {
@@ -644,15 +654,37 @@ app.get('/profile', requireAuth, async (req, res) => {
     }
 });
 
-app.post('/delete-download/:fileId', requireAuth, async (req, res) => {
+app.post('/delete-upload/:fileId', requireAuth, async (req, res) => {
     try {
         const user = await User.findById(req.session.userId);
-        user.downloadedFiles = user.downloadedFiles.filter(file => file.fileId !== req.params.fileId);
-        await user.save();
+        const fileToDelete = user.uploadedFiles.find(file => file.fileId === req.params.fileId);
+
+        if (fileToDelete) {
+            // Find file in database
+            const fileInfo = await File.findOne({ fileId: req.params.fileId });
+            if (fileInfo) {
+                // Delete the physical file
+                fs.unlink(fileInfo.filePath, (err) => {
+                    if (err) {
+                        console.error('Error deleting file from server:', err);
+                    } else {
+                        console.log('File successfully deleted from server:', fileInfo.filePath);
+                    }
+                });
+                
+                // Remove from database
+                await File.deleteOne({ fileId: req.params.fileId });
+            }
+
+            // Remove from user's uploadedFiles array
+            user.uploadedFiles = user.uploadedFiles.filter(file => file.fileId !== req.params.fileId);
+            await user.save();
+        }
+        
         res.redirect('/profile');
     } catch (error) {
-        console.error('Error deleting download:', error);
-        res.status(500).send('Error deleting download.');
+        console.error('Error deleting upload:', error);
+        res.status(500).send('Error deleting upload.');
     }
 });
 
@@ -800,16 +832,18 @@ app.post('/upload', upload.single('file'), async (req, res) => {
         if (req.session.userId) {
             const user = await User.findById(req.session.userId);
             const downloadId = crypto.randomBytes(8).toString('hex');
+                const newFile = new File({
+                fileId: downloadId,
+                filePath: req.file.path,
+                fileName: req.body.originalName || req.file.originalname,
+                encrypted: settings.encryptionEnabled
+                    });
+                    await newFile.save();
 
             // Get encryption parameters from request body
             const encryptionKey = req.body.key;
             const encryptionIv = req.body.iv;
 
-            fileLinks[downloadId] = {
-                filePath: req.file.path,
-                fileName: req.body.originalName || req.file.originalname,
-                encrypted: settings.encryptionEnabled
-            };
             
             user.uploadedFiles.push({
                 fileId: downloadId,
@@ -842,28 +876,33 @@ app.post('/upload', upload.single('file'), async (req, res) => {
 });
 
 
-app.get('/download/:id', (req, res) => {
-    const downloadId = req.params.id;
-    const fileInfo = fileLinks[downloadId];
-    
-    if (!fileInfo) {
-        return res.status(404).send('File not found.');
+app.get('/download/:id', async (req, res) => {
+    try {
+        const downloadId = req.params.id;
+        const fileInfo = await File.findOne({ fileId: downloadId });
+        
+        if (!fileInfo) {
+            return res.status(404).send('File not found.');
+        }
+
+        const fileSize = fs.statSync(fileInfo.filePath).size;
+        const formattedSize = (fileSize / (1024 * 1024)).toFixed(2) + " MB";
+
+        res.render('download', {
+            fileName: fileInfo.fileName,
+            fileSize: formattedSize,
+            encrypted: fileInfo.encrypted
+        });
+    } catch (error) {
+        console.error('Download error:', error);
+        res.status(500).send('Error accessing file.');
     }
-
-    const fileSize = fs.statSync(fileInfo.filePath).size;
-    const formattedSize = (fileSize / (1024 * 1024)).toFixed(2) + " MB";
-
-    res.render('download', {
-        fileName: fileInfo.fileName,
-        fileSize: formattedSize,
-        encrypted: fileInfo.encrypted // Pass encryption status to template
-    });
 });
 
 // Update your download route
 app.get('/download/:id/download', async (req, res, next) => {
     const downloadId = req.params.id;
-    const fileInfo = fileLinks[downloadId];
+        const fileInfo = await File.findOne({ fileId: downloadId });
 
     if (!fileInfo) {
         return res.status(404).send('File not found.');
@@ -909,6 +948,9 @@ app.get('/download/:id/download', async (req, res, next) => {
         // Handle client disconnect
         req.on('close', () => {
             fileStream.destroy();
+
+            const stats = fs.statSync(fileInfo.filePath);
+
         });
 
     } catch (error) {
