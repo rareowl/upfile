@@ -17,6 +17,68 @@ const port = 3000;
 const activeUploads = new Map();
 const fileLinks = {};
 
+function getFileIconHelper(fileName) {
+    const extension = path.extname(fileName).toLowerCase();
+    
+    // Map of file extensions to icon representations
+    const iconMap = {
+        // Images
+        '.jpg': '🖼️',
+        '.jpeg': '🖼️',
+        '.png': '🖼️',
+        '.gif': '🖼️',
+        '.svg': '🖼️',
+        '.webp': '🖼️',
+        
+        // Documents
+        '.pdf': '📄',
+        '.doc': '📝',
+        '.docx': '📝',
+        '.txt': '📝',
+        '.md': '📝',
+        '.rtf': '📝',
+        
+        // Spreadsheets
+        '.xls': '📊',
+        '.xlsx': '📊',
+        '.csv': '📊',
+        
+        // Archives
+        '.zip': '📦',
+        '.rar': '📦',
+        '.7z': '📦',
+        '.tar': '📦',
+        '.gz': '📦',
+        
+        // Audio
+        '.mp3': '🎵',
+        '.wav': '🎵',
+        '.ogg': '🎵',
+        '.m4a': '🎵',
+        
+        // Video
+        '.mp4': '🎥',
+        '.mov': '🎥',
+        '.avi': '🎥',
+        '.mkv': '🎥',
+        
+        // Code
+        '.js': '💻',
+        '.py': '💻',
+        '.java': '💻',
+        '.html': '💻',
+        '.css': '💻',
+        '.php': '💻',
+        
+        // Others
+        '.exe': '⚙️',
+        '.msi': '⚙️'
+    };
+    
+    // Return the matching icon or default icon
+    return iconMap[extension] || '📄';
+}
+
 // Initialize directories
 (async () => {
     try {
@@ -861,6 +923,28 @@ app.post('/delete-upload/:fileId', requireAuth, async (req, res) => {
     }
 });
 
+app.get('/register', (req, res) => {
+    res.render('register');
+});
+
+app.post('/register', async (req, res) => {
+    try {
+        const userCount = await User.countDocuments();
+        const hashedPassword = await bcrypt.hash(req.body.password, 10);
+        const user = new User({
+            username: req.body.username,
+            password: hashedPassword,
+            email: req.body.email,
+            isAdmin: userCount === 0 // First user becomes admin
+        });
+        await user.save();
+        res.redirect('/login');
+    } catch (error) {
+        console.error('Registration error:', error);
+        res.redirect('/register');
+    }
+});
+
 // Authentication Routes
 app.post('/login', async (req, res) => {
     try {
@@ -899,7 +983,26 @@ app.get('/profile', requireAuth, async (req, res) => {
     try {
         const user = await User.findById(req.session.userId);
         const baseUrl = `${req.protocol}://${req.get('host')}`;
-        res.render('profile', { user, baseUrl });
+        
+        // Add these helper functions to be available in the template
+        const helpers = {
+            getFileIcon: getFileIconHelper,
+            formatDate: (date) => {
+                return new Date(date).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            }
+        };
+        
+        res.render('profile', { 
+            user,
+            baseUrl,
+            ...helpers
+        });
     } catch (error) {
         console.error('Profile error:', error);
         res.redirect('/login');
