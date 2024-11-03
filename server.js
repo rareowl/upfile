@@ -656,6 +656,211 @@ app.post('/upload', upload.single('file'), async (req, res) => {
     }
 });
 
+app.get('/admin-settings', requireAdmin, async (req, res) => {
+    try {
+        const settings = await Settings.findOne();
+        const users = await User.find({}).sort({ createdAt: -1 });
+        const user = await User.findById(req.session.userId);
+        
+        res.render('admin-settings', { 
+            user,
+            users,
+            settings: settings || { 
+                maxUploadSize: 100 * 1024 * 1024, 
+                maxDownloadSize: 2 * 1024 * 1024 * 1024,
+                throttleSpeed: 2 * 1024 * 1024,
+                defaultTheme: 'light',
+                encryptionEnabled: true,
+                lastUpdated: new Date()
+            }
+        });
+    } catch (error) {
+        console.error('Admin settings error:', error);
+        res.redirect('/profile');
+    }
+});
+
+app.post('/admin-settings/general', requireAdmin, async (req, res) => {
+    try {
+        const maxUploadSize = parseInt(req.body.maxUploadSize);
+        const maxDownloadSize = parseInt(req.body.maxDownloadSize);
+        const throttleSpeed = parseFloat(req.body.throttleSpeed);
+        const encryptionEnabled = req.body.encryptionEnabled === 'true';
+        
+        // Convert all values to bytes
+        const settings = {
+            maxUploadSize: maxUploadSize * 1024 * 1024, // MB to bytes
+            maxDownloadSize: maxDownloadSize * 1024 * 1024 * 1024, // GB to bytes
+            throttleSpeed: Math.floor(throttleSpeed * 1024 * 1024), // MB/s to bytes/s
+            encryptionEnabled: encryptionEnabled,
+            lastUpdated: new Date()
+        };
+
+        await Settings.findOneAndUpdate({}, settings, { upsert: true });
+        
+        // Log the new settings
+        console.log('Updated throttle settings:');
+        console.log('- Max upload size:', settings.maxUploadSize, 'bytes');
+        console.log('- Max download size:', settings.maxDownloadSize, 'bytes');
+        console.log('- Throttle speed:', settings.throttleSpeed, 'bytes/second');
+        
+        res.redirect('/admin-settings');
+    } catch (error) {
+        console.error('Settings update error:', error);
+        res.redirect('/admin-settings');
+    }
+});
+
+// User details route
+app.get('/admin/user/:userId', requireAdmin, async (req, res) => {
+    try {
+        const userData = await User.findById(req.params.userId);
+        if (!userData) {
+            return res.status(404).send('User not found');
+        }
+
+        // Calculate total storage used
+        let totalStorageUsed = 0;
+        for (const file of userData.uploadedFiles) {
+            const filePath = fileLinks[file.fileId]?.filePath;
+            if (filePath && fs.existsSync(filePath)) {
+                const stats = fs.statSync(filePath);
+                totalStorageUsed += stats.size;
+            }
+        }
+
+        // Helper function to format bytes
+        const formatBytes = (bytes) => {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        };
+
+        res.render('admin-user-details', { 
+            userData, 
+            totalStorageUsed,
+            formatBytes
+        });
+    } catch (error) {
+        console.error('Error fetching user details:', error);
+        res.redirect('/admin-settings');
+    }
+});
+
+// Ban user route
+app.post('/admin/user/:userId/ban', requireAdmin, async (req, res) => {
+    try {
+        const user = await User.findById(req.params.userId);
+        if (!user) {
+            return res.status(404).send('User not found');
+        }
+
+        // Get the user's last known IP (you'll need to track this when users log in)
+        const lastIP = user.lastKnownIP || req.ip;
+
+        // Create ban record
+        const ban = new BannedIP({
+            ip: lastIP,
+            userId: user._id,
+            reason: req.body.banReason
+        });
+        await ban.save();
+
+        // Optionally disable the user account
+        user.isBanned = true;
+        await user.save();
+
+        res.redirect('/admin-settings');
+    } catch (error) {
+        console.error('Error banning user:', error);
+        res.redirect(`/admin/user/${req.params.userId}`);
+    }
+});
+
+// Delete file route
+app.post('/admin/file/:fileId/delete', requireAdmin, async (req, res) => {
+    try {
+        const fileId = req.params.fileId;
+        const filePath = fileLinks[fileId]?.filePath;
+        
+        if (filePath) {
+            // Delete the physical file
+            fs.unlink(filePath, (err) => {
+                if (err) {
+                    console.error('Error deleting file from server:', err);
+                }
+            });
+            
+            // Remove from fileLinks
+            delete fileLinks[fileId];
+            
+            // Remove from all users' uploaded files
+            await User.updateMany(
+                { 'uploadedFiles.fileId': fileId },
+                { $pull: { uploadedFiles: { fileId: fileId } } }
+            );
+        }
+        
+        // Redirect back to the user details page
+        res.redirect(req.headers.referer || '/admin-settings');
+    } catch (error) {
+        console.error('Error deleting file:', error);
+        res.redirect('/admin-settings');
+    }
+});
+
+app.post('/admin-settings/display', requireAdmin, async (req, res) => {
+    try {
+        const { defaultTheme } = req.body;
+        
+        await Settings.findOneAndUpdate({}, {
+            defaultTheme,
+            lastUpdated: new Date()
+        }, { upsert: true });
+        
+        res.redirect('/admin-settings');
+    } catch (error) {
+        console.error('Display settings update error:', error);
+        res.redirect('/admin-settings');
+    }
+});
+
+app.post('/delete-upload/:fileId', requireAuth, async (req, res) => {
+    try {
+        const user = await User.findById(req.session.userId);
+        const fileToDelete = user.uploadedFiles.find(file => file.fileId === req.params.fileId);
+
+        if (fileToDelete) {
+            // Find file in database
+            const fileInfo = await File.findOne({ fileId: req.params.fileId });
+            if (fileInfo) {
+                // Delete the physical file
+                fs.unlink(fileInfo.filePath, (err) => {
+                    if (err) {
+                        console.error('Error deleting file from server:', err);
+                    } else {
+                        console.log('File successfully deleted from server:', fileInfo.filePath);
+                    }
+                });
+                
+                // Remove from database
+                await File.deleteOne({ fileId: req.params.fileId });
+            }
+
+            // Remove from user's uploadedFiles array
+            user.uploadedFiles = user.uploadedFiles.filter(file => file.fileId !== req.params.fileId);
+            await user.save();
+        }
+        
+        res.redirect('/profile');
+    } catch (error) {
+        console.error('Error deleting upload:', error);
+        res.status(500).send('Error deleting upload.');
+    }
+});
+
 // Authentication Routes
 app.post('/login', async (req, res) => {
     try {
