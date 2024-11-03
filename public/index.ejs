@@ -85,25 +85,7 @@
             return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
         }
 
-        // Encryption helper functions
-        async function generateKey() {
-            return await window.crypto.subtle.generateKey(
-                {
-                    name: "AES-GCM",
-                    length: 256
-                },
-                true,
-                ["encrypt", "decrypt"]
-            );
-        }
-
-        async function exportKey(key) {
-            const exported = await window.crypto.subtle.exportKey("raw", key);
-            return Array.from(new Uint8Array(exported))
-                .map(b => b.toString(16).padStart(2, '0'))
-                .join('');
-        }
-
+        // Progress UI update function
         function updateStage(stageName) {
             const stages = ['Prep', 'Upload', 'Process', 'Complete'];
             stages.forEach(stage => {
@@ -122,45 +104,6 @@
             }
         }
 
-        async function encryptFile(file) {
-            try {
-                const key = await generateKey();
-                const iv = window.crypto.getRandomValues(new Uint8Array(12));
-                
-                const fileBuffer = await file.arrayBuffer();
-                progressDetail.textContent = `Encrypting ${formatBytes(fileBuffer.byteLength)}...`;
-                
-                const encryptedContent = await window.crypto.subtle.encrypt(
-                    {
-                        name: "AES-GCM",
-                        iv: iv
-                    },
-                    key,
-                    fileBuffer
-                );
-                
-                const encryptedFile = new File(
-                    [encryptedContent],
-                    file.name,
-                    { type: file.type }
-                );
-
-                const keyHex = await exportKey(key);
-                const ivHex = Array.from(iv)
-                    .map(b => b.toString(16).padStart(2, '0'))
-                    .join('');
-
-                return {
-                    file: encryptedFile,
-                    key: keyHex,
-                    iv: ivHex
-                };
-            } catch (error) {
-                console.error('Encryption error:', error);
-                throw new Error('Failed to encrypt file: ' + error.message);
-            }
-        }
-
         // DOM element references
         const fileInput = document.getElementById('fileInput');
         const uploadButton = document.getElementById('uploadButton');
@@ -173,6 +116,7 @@
         const uploadSuccess = document.getElementById('uploadSuccess');
         const downloadLink = document.getElementById('downloadLink');
 
+        // Configuration checks
         async function getMaxFileSize() {
             try {
                 const response = await fetch('/get-max-file-size');
@@ -185,28 +129,21 @@
         }
 
         async function getEncryptionStatus() {
-    try {
-        const response = await fetch('/get-encryption-status');
-        const data = await response.json();
-        return data.encryptionEnabled;
-    } catch (error) {
-        console.error('Error getting encryption status:', error);
-        return true; // Default to encryption enabled if we can't check
-    }
-}
+            try {
+                const response = await fetch('/get-encryption-status');
+                const data = await response.json();
+                return data.encryptionEnabled;
+            } catch (error) {
+                console.error('Error getting encryption status:', error);
+                return true;
+            }
+        }
 
-async function uploadFile() {
+        // Chunked upload implementation
+        async function uploadFile() {
     const file = fileInput.files[0];
     if (!file) {
         alert('Please select a file first!');
-        return;
-    }
-
-    // Check file size
-    const maxSize = await getMaxFileSize();
-    if (maxSize && file.size > maxSize) {
-        const maxSizeMB = (maxSize / (1024 * 1024)).toFixed(2);
-        resultMessage.textContent = `File size exceeds the limit of ${maxSizeMB} MB`;
         return;
     }
 
@@ -223,107 +160,114 @@ async function uploadFile() {
         progressDetail.textContent = `Preparing to process ${formatBytes(file.size)}...`;
         progressStatus.textContent = 'Getting ready...';
 
-        // Check if encryption is enabled
-        const encryptionEnabled = await getEncryptionStatus();
-        let fileToUpload = file;
-        let encryptionKey = null;
-        let encryptionIv = null;
+        // Initialize upload
+        const initResponse = await fetch('/init-upload', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                fileName: file.name,
+                fileSize: file.size
+            })
+        });
 
-        if (encryptionEnabled) {
-            progressDetail.textContent = 'Encrypting file...';
-            const encryptedData = await encryptFile(file);
-            fileToUpload = encryptedData.file;
-            encryptionKey = encryptedData.key;
-            encryptionIv = encryptedData.iv;
+        if (!initResponse.ok) {
+            const error = await initResponse.json();
+            throw new Error(error.error || 'Failed to initialize upload');
         }
-        
+
+        const { uploadId, chunkSize } = await initResponse.json();
+        const totalChunks = Math.ceil(file.size / chunkSize);
+        let uploadedChunks = 0;
+
         // Upload stage
         updateStage('Upload');
         progressBar.style.width = '25%';
         progressText.textContent = '25%';
-        progressDetail.textContent = 'Starting upload...';
-        progressStatus.textContent = 'Uploading to server...';
 
-        const formData = new FormData();
-formData.append('file', fileToUpload);
-formData.append('originalName', file.name);
-if (encryptionEnabled && encryptionKey && encryptionIv) {
-    formData.append('key', encryptionKey);
-    formData.append('iv', encryptionIv);
-}
-
-        // Upload the file
-        const xhr = new XMLHttpRequest();
-        xhr.open('POST', '/upload', true);
-
-        xhr.upload.onprogress = (event) => {
-            if (event.lengthComputable) {
-                const uploadProgress = 25 + ((event.loaded / event.total) * 50);
-                progressBar.style.width = uploadProgress + '%';
-                progressText.textContent = Math.round(uploadProgress) + '%';
-                progressDetail.textContent = `Uploading: ${formatBytes(event.loaded)} / ${formatBytes(event.total)}`;
-            }
-        };
-
-        xhr.onload = () => {
-            try {
-                const response = JSON.parse(xhr.responseText);
-                
-                if (xhr.status === 200 && response.success) {
-                    // Process stage
-                    updateStage('Process');
-                    progressBar.style.width = '90%';
-                    progressText.textContent = '90%';
-                    progressDetail.textContent = 'Finalizing...';
-                    progressStatus.textContent = 'Almost done...';
-
-                    // Complete stage
-                    setTimeout(() => {
-                        updateStage('Complete');
-                        progressBar.style.width = '100%';
-                        progressText.textContent = '100%';
-                        progressDetail.textContent = 'Upload complete!';
-                        progressStatus.textContent = 'Ready to share';
-
-                        // Add encryption parameters to URL only if encryption was used
-                        let fullUrl = `${window.location.origin}${response.downloadLink}`;
-                        if (encryptionEnabled && encryptionKey && encryptionIv) {
-                            fullUrl += `#key=${encryptionKey}&iv=${encryptionIv}`;
-                        }
-                        downloadLink.href = fullUrl;
-                        downloadLink.textContent = fullUrl;
-                        uploadSuccess.style.display = 'block';
-                        resultMessage.textContent = '';
-
-                        setTimeout(() => {
-                            progressContainer.style.display = 'none';
-                        }, 1000);
-                    }, 500);
-                } else {
-                    throw new Error(response.message || 'Upload failed');
-                }
-            } catch (e) {
-                resultMessage.textContent = e.message || 'Upload failed. Please try again.';
-                uploadSuccess.style.display = 'none';
-                progressContainer.style.display = 'none';
-            }
+        // Upload chunks
+        for (let chunkStart = 0; chunkStart < file.size; chunkStart += chunkSize) {
+            const chunkEnd = Math.min(chunkStart + chunkSize, file.size);
+            const chunk = file.slice(chunkStart, chunkEnd);
             
-            uploadButton.disabled = false;
-        };
+            const formData = new FormData();
+            const chunkBlob = new Blob([chunk], { type: file.type });
+            
+            formData.append('chunk', chunkBlob, 'chunk');
+            formData.append('uploadId', uploadId);
+            formData.append('chunkIndex', uploadedChunks.toString());
+            formData.append('totalChunks', totalChunks.toString());
 
-        xhr.onerror = () => {
+            const uploadResponse = await fetch('/upload-chunk', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!uploadResponse.ok) {
+                const error = await uploadResponse.json();
+                throw new Error(error.error || `Failed to upload chunk ${uploadedChunks + 1}`);
+            }
+
+            uploadedChunks++;
+            const totalProgress = (uploadedChunks / totalChunks) * 75;
+            progressBar.style.width = `${25 + totalProgress}%`;
+            progressText.textContent = Math.round(25 + totalProgress) + '%';
+            progressDetail.textContent = `Uploading chunk ${uploadedChunks} of ${totalChunks}`;
+            progressStatus.textContent = `${formatBytes(chunkEnd)} of ${formatBytes(file.size)}`;
+        }
+
+        // Process stage - Finalize upload
+        updateStage('Process');
+        progressBar.style.width = '90%';
+        progressText.textContent = '90%';
+        progressDetail.textContent = 'Finalizing upload...';
+        progressStatus.textContent = 'Almost done...';
+
+        const finalizeResponse = await fetch('/finalize-upload', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                uploadId,
+                fileName: file.name
+            })
+        });
+
+        if (!finalizeResponse.ok) {
+            const error = await finalizeResponse.json();
+            throw new Error(error.error || 'Failed to finalize upload');
+        }
+
+        const { downloadLink: fileLink, key, iv } = await finalizeResponse.json();
+
+        // Complete stage
+        updateStage('Complete');
+        progressBar.style.width = '100%';
+        progressText.textContent = '100%';
+        progressDetail.textContent = 'Upload complete!';
+        progressStatus.textContent = 'Ready to share';
+
+        let fullUrl = `${window.location.origin}${fileLink}`;
+        if (key && iv) {
+            fullUrl += `#key=${key}&iv=${iv}`;
+        }
+
+        downloadLink.href = fullUrl;
+        downloadLink.textContent = fullUrl;
+        uploadSuccess.style.display = 'block';
+
+        setTimeout(() => {
             progressContainer.style.display = 'none';
-            uploadSuccess.style.display = 'none';
-            resultMessage.textContent = 'Upload failed. Please check your connection.';
-            uploadButton.disabled = false;
-        };
+        }, 1000);
 
-        xhr.send(formData);
     } catch (error) {
         console.error('Upload error:', error);
         progressContainer.style.display = 'none';
         uploadSuccess.style.display = 'none';
         resultMessage.textContent = error.message || 'Error processing file. Please try again.';
+    } finally {
         uploadButton.disabled = false;
     }
 }
