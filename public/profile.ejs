@@ -70,15 +70,11 @@
                                         <span class="encryption-badge">encrypted</span>
                                     <% } %>
                                 </div>
-                            </div>
-                            <div class="file-actions">
-                                <div class="link-row">
-                                    <input type="text" readonly 
-                                           value="<%= baseUrl %>/download/<%= file.fileId %><%= file.encryptionKey ? '#key=' + file.encryptionKey + '&iv=' + file.encryptionIv : '' %>" 
-                                           id="link-<%= file.fileId %>" 
-                                           class="file-url">
-                                    <button onclick="copyFileLink('<%= file.fileId %>')" class="icon-button copy-button" title="Copy link">copy</button>
-                                    <button onclick="confirmDelete('<%= file.fileId %>', '<%= file.fileName %>')" class="icon-button delete-button" title="Delete file">×</button>
+                                <div class="file-actions">
+                                    <button onclick="copyFileLink('<%= file.fileId %>')" class="action-button copy-button" title="Copy link" data-link="<%= baseUrl %>/download/<%= file.fileId %><%= file.encryptionKey ? '#key=' + file.encryptionKey + '&iv=' + file.encryptionIv : '' %>">
+                                        copy
+                                    </button>
+                                    <button onclick="confirmDelete('<%= file.fileId %>', '<%= file.fileName %>')" class="action-button delete-button" title="Delete file">×</button>
                                 </div>
                             </div>
                         </div>
@@ -167,25 +163,28 @@
     border-radius: 4px;
     padding: 0.75rem;
     transition: transform 0.2s, box-shadow 0.2s;
-    overflow: hidden; /* Add this to contain content */
+    display: flex;
+    flex-direction: column;
 }
 
 @media (max-width: 480px) {
-    .files-grid {
-        grid-template-columns: 1fr; /* Single column on mobile */
+    .file-header {
+        flex-wrap: wrap;
     }
     
-    .link-row {
-        flex-direction: column;
-        gap: 0.5rem;
+    .file-info {
+        width: calc(100% - 3rem);
+        order: 2;
     }
     
-    .file-url {
+    .file-actions {
         width: 100%;
+        margin-top: 0.5rem;
+        order: 3;
     }
     
-    .icon-button {
-        width: 100%;
+    .action-button {
+        flex: 1;
     }
 }
 
@@ -200,9 +199,8 @@
 .file-header {
     display: flex;
     align-items: flex-start;
-    gap: 0.75rem;
-    margin-bottom: 0.75rem;
-}
+    width: 100%;
+} 
 
 
         .file-card:hover {
@@ -218,8 +216,8 @@
 
 .file-info {
     flex: 1;
-    min-width: 0; /* Enable text truncation */
-    overflow: hidden; /* Add this */
+    min-width: 0;
+    overflow: hidden;
 }
 
 
@@ -231,7 +229,6 @@
     overflow: hidden;
     text-overflow: ellipsis;
     color: var(--text-color);
-    max-width: 100%; /* Add this */
 }
 
 .upload-date {
@@ -240,6 +237,7 @@
     color: #666;
     margin-top: 0.25rem;
 }
+
 
 .encryption-badge {
     display: inline-block;
@@ -288,16 +286,13 @@
 .delete-button {
     background-color: #ff4d4d;
     color: white;
-    font-size: 1rem;
     padding: 0.35rem 0.5rem;
-    min-width: 2rem;
 }
 
 .file-actions {
-    margin-top: 0.5rem;
     display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
+    gap: 0.5rem;
+    align-items: flex-start;
 }
         .pagination {
             display: flex;
@@ -307,6 +302,14 @@
             margin-top: 2rem;
             padding: 1rem;
         }
+
+        .action-button {
+    padding: 0.35rem 0.75rem;
+    font-size: 0.8rem;
+    border-radius: 3px;
+    cursor: pointer;
+    white-space: nowrap;
+}
 
         .pagination button {
             padding: 0.5rem 1rem;
@@ -457,16 +460,18 @@
 
         // Copy Link Function
         function copyFileLink(fileId) {
-            const input = document.getElementById(`link-${fileId}`);
-            input.select();
-            document.execCommand('copy');
-            
-            const button = input.nextElementSibling;
-            button.textContent = 'copied!';
-            setTimeout(() => {
-                button.textContent = 'copy';
-            }, 2000);
-        }
+    const button = document.querySelector(`[data-link][onclick*="${fileId}"]`);
+    const link = button.dataset.link;
+    
+    navigator.clipboard.writeText(link).then(() => {
+        button.textContent = 'copied!';
+        setTimeout(() => {
+            button.textContent = 'copy';
+        }, 2000);
+    }).catch(err => {
+        console.error('Failed to copy link: ', err);
+    });
+}
 
         // Delete Functions
         function confirmDelete(fileId, fileName) {
