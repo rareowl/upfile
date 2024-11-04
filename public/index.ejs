@@ -130,18 +130,6 @@
             }
         }
 
-        async function getEncryptionStatus() {
-            try {
-                const response = await fetch('/get-encryption-status');
-                const data = await response.json();
-                return data.encryptionEnabled;
-            } catch (error) {
-                console.error('Error getting encryption status:', error);
-                return true;
-            }
-        }
-
-        // Chunked upload implementation
         async function uploadFile() {
     const file = fileInput.files[0];
     if (!file) {
@@ -150,6 +138,16 @@
     }
 
     try {
+        // Check if upload is allowed first
+        const permResponse = await fetch('/get-upload-permissions');
+        const permissions = await permResponse.json();
+        
+        if (!permissions.allowUnregisteredUploads && !document.cookie.includes('connect.sid')) {
+            alert('Please login to upload files');
+            window.location.href = '/login';
+            return;
+        }
+
         progressContainer.style.display = 'block';
         uploadButton.disabled = true;
         uploadSuccess.style.display = 'none';
@@ -274,6 +272,17 @@
     }
 }
 
+async function getEncryptionStatus() {
+    try {
+        const response = await fetch('/get-encryption-status');
+        const data = await response.json();
+        return data.encryptionEnabled;
+    } catch (error) {
+        console.error('Error getting encryption status:', error);
+        return true;
+    }
+}
+
         function copyLink() {
             const linkText = downloadLink.href;
             navigator.clipboard.writeText(linkText).then(() => {
@@ -298,8 +307,8 @@
         });
     </script>
 
-    <div class="footer">
-        <a href="/about">about us</a>
-    </div>
+<div class="footer">
+    <a href="/about">about us</a> | <a href="https://github.com/rareowl/upfile" target="_blank">github</a>
+</div>
 </body>
 </html>

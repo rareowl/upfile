@@ -151,16 +151,29 @@ const settingsSchema = new mongoose.Schema({
     throttleSpeed: { type: Number, default: 2 * 1024 * 1024 },
     defaultTheme: { type: String, default: 'light', enum: ['light', 'dark'] },
     encryptionEnabled: { type: Boolean, default: true },
+    allowUnregisteredUploads: { type: Boolean, default: false },
+    anonymousUploadExpiry: { type: Number, default: 7 }, // Days until anonymous uploads expire
     lastUpdated: { type: Date, default: Date.now }
 });
 
+// Also update the File schema if you haven't already
 const fileSchema = new mongoose.Schema({
     fileId: { type: String, required: true, unique: true },
     filePath: { type: String, required: true },
     fileName: { type: String, required: true },
     encrypted: { type: Boolean, default: false },
-    uploadDate: { type: Date, default: Date.now }
+    uploadDate: { type: Date, default: Date.now },
+    uploadedBy: { 
+        type: String,
+        default: 'anonymous'
+    },
+    uploadedFromIP: String,
+    expiryDate: Date
 });
+
+// Add an index for automatic file cleanup
+fileSchema.index({ expiryDate: 1 }, { expireAfterSeconds: 0 })
+
 
 const bannedIPSchema = new mongoose.Schema({
     ip: { type: String, required: true },
@@ -283,8 +296,94 @@ app.use((req, res, next) => {
     next();
 });
 
+const requireAuthAPI = async (req, res, next) => {
+    const settings = await Settings.findOne();
+    
+    // If unregistered uploads are allowed for upload endpoints, skip authentication
+    if (settings.allowUnregisteredUploads && (
+        req.path === '/upload' || 
+        req.path === '/init-upload' || 
+        req.path.startsWith('/upload-chunk') ||
+        req.path === '/finalize-upload')
+    ) {
+        return next();
+    }
+    
+    // For API endpoints, return JSON instead of redirecting
+    if (!req.session.userId) {
+        return res.status(401).json({ 
+            success: false, 
+            message: 'Authentication required' 
+        });
+    }
+    next();
+};
+
+async function cleanupExpiredFiles() {
+    try {
+        // Get current settings
+        const settings = await Settings.findOne();
+        
+        // Find all expired files
+        const expiredFiles = await File.find({
+            expiryDate: { $lt: new Date() }
+        });
+
+        let deletedCount = 0;
+        let errorCount = 0;
+
+        // Delete each expired file
+        for (const file of expiredFiles) {
+            try {
+                // Delete the physical file
+                await fs.unlink(file.filePath);
+                // Delete the database entry
+                await File.deleteOne({ _id: file._id });
+                deletedCount++;
+                console.log(`Cleaned up expired file: ${file.fileName}`);
+            } catch (error) {
+                errorCount++;
+                console.error(`Error cleaning up file ${file.fileName}:`, error);
+            }
+        }
+
+        // Log cleanup results
+        console.log(`Cleanup completed: ${deletedCount} files deleted, ${errorCount} errors`);
+        
+        // Update expiry dates for any anonymous uploads that don't have one
+        await File.updateMany(
+            { 
+                uploadedBy: 'anonymous',
+                expiryDate: null 
+            },
+            { 
+                $set: { 
+                    expiryDate: new Date(Date.now() + settings.anonymousUploadExpiry * 24 * 60 * 60 * 1000) 
+                } 
+            }
+        );
+
+    } catch (error) {
+        console.error('Error in cleanup routine:', error);
+    }
+}
+
+// Run cleanup every hour
+setInterval(cleanupExpiredFiles, 60 * 60 * 1000);
+
+// Run cleanup on server start
+cleanupExpiredFiles();
+
 // Authentication middleware
-const requireAuth = (req, res, next) => {
+const requireAuth = async (req, res, next) => {
+    const settings = await Settings.findOne();
+    
+    // If unregistered uploads are allowed, skip authentication
+    if (settings.allowUnregisteredUploads && req.path === '/upload') {
+        return next();
+    }
+    
+    // Otherwise, require authentication
     if (!req.session.userId) {
         return res.redirect('/login');
     }
@@ -329,7 +428,7 @@ const upload = multer({
 });
 
 // Chunk Upload Routes
-app.post('/init-upload', requireAuth, async (req, res) => {
+app.post('/init-upload', requireAuthAPI, async (req, res) => {
     try {
         const { fileName, fileSize } = req.body;
         if (!fileName || !fileSize) {
@@ -358,7 +457,7 @@ app.post('/init-upload', requireAuth, async (req, res) => {
     }
 });
 
-app.post('/upload-chunk', requireAuth, uploadChunk.single('chunk'), async (req, res) => {
+app.post('/upload-chunk', requireAuthAPI, uploadChunk.single('chunk'), async (req, res) => {
     try {
         const { uploadId, chunkIndex, totalChunks } = req.body;
         
@@ -400,7 +499,7 @@ app.post('/upload-chunk', requireAuth, uploadChunk.single('chunk'), async (req, 
     }
 });
 
-app.post('/finalize-upload', requireAuth, async (req, res) => {
+app.post('/finalize-upload', requireAuthAPI, async (req, res) => {
     try {
         const { uploadId } = req.body;
         console.log('Finalizing upload:', uploadId);
@@ -437,6 +536,7 @@ app.post('/finalize-upload', requireAuth, async (req, res) => {
 
         // Handle encryption
         const settings = await Settings.findOne();
+        const expiryDays = settings.anonymousUploadExpiry;
         let encryptionKey = null;
         let encryptionIv = null;
         let finalFilePath = finalPath;
@@ -445,7 +545,6 @@ app.post('/finalize-upload', requireAuth, async (req, res) => {
             const key = crypto.randomBytes(32);
             const iv = crypto.randomBytes(16);
             
-            // Create read stream from the original file
             const readStream = fsSync.createReadStream(finalPath);
             const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
             const encryptedPath = `${finalPath}.encrypted`;
@@ -462,35 +561,42 @@ app.post('/finalize-upload', requireAuth, async (req, res) => {
                     });
             });
         
-            // Clean up the original file
             await fs.unlink(finalPath);
             finalFilePath = encryptedPath;
             encryptionKey = key.toString('hex');
             encryptionIv = iv.toString('hex');
         
             console.log('File encrypted successfully');
-            console.log('Key:', encryptionKey);
-            console.log('IV:', encryptionIv);
         }
 
         // Save to database
         const downloadId = path.basename(finalFilePath);
-        const user = await User.findById(req.session.userId);
         
+        // Create file record
         await File.create({
             fileId: downloadId,
             filePath: finalFilePath,
             fileName: uploadInfo.fileName,
-            encrypted: settings.encryptionEnabled
+            encrypted: settings.encryptionEnabled,
+            uploadedBy: req.session.userId || 'anonymous',
+            uploadedFromIP: req.ip,
+            // Set expiry based on admin setting
+            expiryDate: req.session.userId ? null : new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000)
         });
 
-        user.uploadedFiles.push({
-            fileId: downloadId,
-            fileName: uploadInfo.fileName,
-            encryptionKey,
-            encryptionIv
-        });
-        await user.save();
+        // If user is logged in, add to their uploads
+        if (req.session.userId) {
+            const user = await User.findById(req.session.userId);
+            if (user) {
+                user.uploadedFiles.push({
+                    fileId: downloadId,
+                    fileName: uploadInfo.fileName,
+                    encryptionKey,
+                    encryptionIv
+                });
+                await user.save();
+            }
+        }
 
         // Cleanup
         await fs.rm(uploadInfo.uploadDir, { recursive: true });
@@ -659,7 +765,7 @@ function deleteFile(filePath) {
 }
 
 // Standard Upload Route (for smaller files)
-app.post('/upload', upload.single('file'), async (req, res) => {
+app.post('/upload', requireAuthAPI, upload.single('file'), async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ 
@@ -678,30 +784,28 @@ app.post('/upload', upload.single('file'), async (req, res) => {
             });
         }
 
-        if (!req.session.userId) {
-            return res.status(403).json({ 
-                success: false, 
-                message: 'Not authenticated' 
-            });
-        }
-
-        const user = await User.findById(req.session.userId);
         const downloadId = crypto.randomBytes(8).toString('hex');
         
         await File.create({
             fileId: downloadId,
             filePath: req.file.path,
             fileName: req.body.originalName || req.file.originalname,
-            encrypted: settings.encryptionEnabled
+            encrypted: settings.encryptionEnabled,
+            uploadedBy: req.session.userId || 'anonymous',
+            uploadedFromIP: req.ip
         });
 
-        user.uploadedFiles.push({
-            fileId: downloadId,
-            fileName: req.body.originalName || req.file.originalname,
-            encryptionKey: req.body.key,
-            encryptionIv: req.body.iv
-        });
-        await user.save();
+        // If user is logged in, add to their uploads
+        if (req.session.userId) {
+            const user = await User.findById(req.session.userId);
+            user.uploadedFiles.push({
+                fileId: downloadId,
+                fileName: req.body.originalName || req.file.originalname,
+                encryptionKey: req.body.key,
+                encryptionIv: req.body.iv
+            });
+            await user.save();
+        }
 
         res.json({
             success: true,
@@ -717,7 +821,6 @@ app.post('/upload', upload.single('file'), async (req, res) => {
         });
     }
 });
-
 app.get('/admin-settings', requireAdmin, async (req, res) => {
     try {
         const settings = await Settings.findOne();
@@ -742,29 +845,55 @@ app.get('/admin-settings', requireAdmin, async (req, res) => {
     }
 });
 
+app.get('/get-upload-permissions', async (req, res) => {
+    try {
+        const settings = await Settings.findOne();
+        res.json({
+            allowUnregisteredUploads: settings.allowUnregisteredUploads,
+            isAuthenticated: !!req.session.userId
+        });
+    } catch (error) {
+        console.error('Error getting upload permissions:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to get upload permissions' 
+        });
+    }
+});
+
 app.post('/admin-settings/general', requireAdmin, async (req, res) => {
     try {
         const maxUploadSize = parseInt(req.body.maxUploadSize);
         const maxDownloadSize = parseInt(req.body.maxDownloadSize);
         const throttleSpeed = parseFloat(req.body.throttleSpeed);
         const encryptionEnabled = req.body.encryptionEnabled === 'true';
+        const allowUnregisteredUploads = req.body.allowUnregisteredUploads === 'true';
+        const anonymousUploadExpiry = parseInt(req.body.anonymousUploadExpiry);
         
-        // Convert all values to bytes
+        // Validate expiry days
+        if (isNaN(anonymousUploadExpiry) || anonymousUploadExpiry < 1) {
+            throw new Error('Invalid expiry days value');
+        }
+        
         const settings = {
-            maxUploadSize: maxUploadSize * 1024 * 1024, // MB to bytes
-            maxDownloadSize: maxDownloadSize * 1024 * 1024 * 1024, // GB to bytes
-            throttleSpeed: Math.floor(throttleSpeed * 1024 * 1024), // MB/s to bytes/s
+            maxUploadSize: maxUploadSize * 1024 * 1024,
+            maxDownloadSize: maxDownloadSize * 1024 * 1024 * 1024,
+            throttleSpeed: Math.floor(throttleSpeed * 1024 * 1024),
             encryptionEnabled: encryptionEnabled,
+            allowUnregisteredUploads: allowUnregisteredUploads,
+            anonymousUploadExpiry: anonymousUploadExpiry,
             lastUpdated: new Date()
         };
 
         await Settings.findOneAndUpdate({}, settings, { upsert: true });
         
-        // Log the new settings
-        console.log('Updated throttle settings:');
-        console.log('- Max upload size:', settings.maxUploadSize, 'bytes');
-        console.log('- Max download size:', settings.maxDownloadSize, 'bytes');
-        console.log('- Throttle speed:', settings.throttleSpeed, 'bytes/second');
+        // Update expiry dates for existing anonymous uploads
+        await File.updateMany(
+            { uploadedBy: 'anonymous' },
+            { $set: { expiryDate: new Date(Date.now() + anonymousUploadExpiry * 24 * 60 * 60 * 1000) } }
+        );
+        
+        console.log('Updated settings:', settings);
         
         res.redirect('/admin-settings');
     } catch (error) {
